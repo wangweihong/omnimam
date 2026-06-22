@@ -1,0 +1,80 @@
+name: Release
+on:
+  push:
+    branches:
+      - 'master'
+jobs:
+  releaseci:
+    name: Test with go ${{ matrix.go_version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    environment:
+      name: releaseci
+
+    strategy:
+      matrix:
+        go_version: [1.17]
+        os: [ubuntu-latest]
+
+    steps:
+      - name: Set up Go ${{ matrix.go_version }}
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go_version }}
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+
+      - name: Run go modules tidy
+        run: |
+          make tidy
+
+      - name: Generate all necessary files, such as error code files
+        run: |
+          make gen
+
+      - name: Check syntax and styling of go sources
+        run: |
+          make lint
+
+      - name: Run unit test and get test coverage
+        run: |
+          make cover
+
+      - name: Build source code for host platform
+        run: |
+          make build
+
+      - name: Build default configs for commands
+        run: |
+          make configs
+
+      - name: Make sure commands can run
+        run: |
+          echo "TODO"
+
+      # generate test coverage file stored if workflows complete
+      - name: Collect Test Coverage File
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: main-output
+          path: _output/coverage.out
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        # get secret value from github repository settings' Security/Security And variables/Actions
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build docker images for multi-arch and push images to registry
+        run: |
+          make REGISTRY_PREFIX=${{ secrets.DOCKERHUB_USERNAME }} push.multiarch
+
+      # https://docs.docker.com/build/ci/github-actions/test-before-push/
+      - name: Make sure build images can run
+        run: |
+          echo "TODO"
