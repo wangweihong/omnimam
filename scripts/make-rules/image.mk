@@ -5,7 +5,7 @@ DOCKER := docker
 DOCKER_SUPPORTED_API_VERSION ?= 1.32
 
 REGISTRY_PREFIX ?= omnimam
-BASE_IMAGE = ubuntu:18.04
+BASE_IMAGE = registry.cn-hangzhou.aliyuncs.com/eazycloud/ubuntu:24.04
 
 EXTRA_ARGS ?= --no-cache
 _DOCKER_BUILD_EXTRA_ARGS := --build-arg BASE_IMAGE=${BASE_IMAGE}
