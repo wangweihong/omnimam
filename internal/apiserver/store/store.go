@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 )
@@ -142,4 +143,99 @@ type CanvasStore interface {
 	CountByProject(ctx context.Context, projectID string) (int, error)
 	ReassignProject(ctx context.Context, oldProjectID, newProjectID string) (int, error)
 	CleanupExpiredTrash(ctx context.Context, retentionDays int) error
+}
+
+type ProviderStore interface {
+	List(ctx context.Context, req *iapiserver.ProviderListRequest) ([]*iapiserver.Provider, int64, error)
+	Get(ctx context.Context, id string) (*iapiserver.Provider, error)
+	Add(ctx context.Context, data *iapiserver.Provider) (*iapiserver.Provider, error)
+	Update(ctx context.Context, data *iapiserver.Provider) (*iapiserver.Provider, error)
+}
+
+type ProviderModelStore interface {
+	List(ctx context.Context, req *iapiserver.ProviderModelListRequest) ([]*iapiserver.ProviderModel, int64, error)
+	Get(ctx context.Context, id string) (*iapiserver.ProviderModel, error)
+	Add(ctx context.Context, data *iapiserver.ProviderModel) (*iapiserver.ProviderModel, error)
+	Update(ctx context.Context, data *iapiserver.ProviderModel) (*iapiserver.ProviderModel, error)
+}
+
+type ProviderCapabilityStore interface {
+	List(ctx context.Context) ([]*iapiserver.ProviderCapability, error)
+	Add(ctx context.Context, data *iapiserver.ProviderCapability) (*iapiserver.ProviderCapability, error)
+}
+
+type SystemLLMConfigStore interface {
+	List(ctx context.Context) ([]*iapiserver.SystemLLMConfig, error)
+	Upsert(ctx context.Context, data *iapiserver.SystemLLMConfig) (*iapiserver.SystemLLMConfig, error)
+}
+
+type StorageBackendStore interface {
+	List(ctx context.Context, req *iapiserver.StorageBackendListRequest) ([]*iapiserver.StorageBackend, int64, error)
+	Get(ctx context.Context, id string) (*iapiserver.StorageBackend, error)
+	Add(ctx context.Context, data *iapiserver.StorageBackend) (*iapiserver.StorageBackend, error)
+	Update(ctx context.Context, data *iapiserver.StorageBackend) (*iapiserver.StorageBackend, error)
+	GetDefaultLocal(ctx context.Context) (*iapiserver.StorageBackend, error)
+}
+
+type AssetStore interface {
+	List(ctx context.Context, req *iapiserver.AssetListRequest) ([]*iapiserver.Asset, int64, error)
+	Get(ctx context.Context, id string) (*iapiserver.Asset, error)
+	Add(ctx context.Context, data *iapiserver.Asset) (*iapiserver.Asset, error)
+	Update(ctx context.Context, data *iapiserver.Asset) (*iapiserver.Asset, error)
+}
+
+type AssetThumbnailStore interface {
+	GetByAsset(ctx context.Context, assetID string) (*iapiserver.AssetThumbnail, error)
+	ListByAssetIDs(ctx context.Context, assetIDs []string) ([]*iapiserver.AssetThumbnail, error)
+	Add(ctx context.Context, data *iapiserver.AssetThumbnail) (*iapiserver.AssetThumbnail, error)
+	Update(ctx context.Context, data *iapiserver.AssetThumbnail) (*iapiserver.AssetThumbnail, error)
+}
+
+type TagStore interface {
+	ListByAssetIDs(ctx context.Context, assetIDs []string) (map[string][]*iapiserver.Tag, error)
+	GetByName(ctx context.Context, name string, source string) (*iapiserver.Tag, error)
+	FirstOrCreate(ctx context.Context, data *iapiserver.Tag) (*iapiserver.Tag, error)
+}
+
+type AssetTagStore interface {
+	Replace(ctx context.Context, assetID string, tags []*iapiserver.Tag, source string) error
+	ListTagNames(ctx context.Context, assetID string) ([]string, error)
+}
+
+type AssetGroupStore interface {
+	Add(ctx context.Context, data *iapiserver.AssetGroup) (*iapiserver.AssetGroup, error)
+}
+
+type AssetGroupMemberStore interface {
+	BatchAdd(ctx context.Context, members []*iapiserver.AssetGroupMember) ([]*iapiserver.AssetGroupMember, error)
+}
+
+type AssetRelationStore interface {
+	Add(ctx context.Context, data *iapiserver.AssetRelation) (*iapiserver.AssetRelation, error)
+}
+
+type TaskStore interface {
+	List(ctx context.Context, req *iapiserver.TaskListRequest) ([]*iapiserver.Task, int64, error)
+	Get(ctx context.Context, id string) (*iapiserver.Task, error)
+	Add(ctx context.Context, data *iapiserver.Task) (*iapiserver.Task, error)
+	Update(ctx context.Context, data *iapiserver.Task) (*iapiserver.Task, error)
+	Cancel(ctx context.Context, id string) (*iapiserver.Task, error)
+	Claim(ctx context.Context, queue, worker string, limit int, lease time.Duration) ([]*iapiserver.Task, error)
+}
+
+type FeatureFlagStore interface {
+	List(ctx context.Context) ([]*iapiserver.FeatureFlag, error)
+	Upsert(ctx context.Context, data *iapiserver.FeatureFlag) (*iapiserver.FeatureFlag, error)
+}
+
+type RoleStore interface {
+	List(ctx context.Context) ([]*iapiserver.Role, error)
+}
+
+type PermissionStore interface {
+	List(ctx context.Context) ([]*iapiserver.Permission, error)
+}
+
+type UserRoleStore interface {
+	ListByUser(ctx context.Context, userID string) ([]*iapiserver.UserRole, error)
 }

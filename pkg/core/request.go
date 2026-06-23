@@ -13,6 +13,9 @@ import (
 )
 
 func DecodeParameter(c *gin.Context, obj any) error {
+	if obj == nil {
+		return nil
+	}
 	if d, ok := obj.(imachinery.Decoder); ok {
 		if err := d.Decode(c); err != nil {
 			//return errors.WrapStatus(err, code.ErrValidation)
@@ -20,7 +23,7 @@ func DecodeParameter(c *gin.Context, obj any) error {
 		}
 	} else {
 		switch c.Request.Method {
-		case http.MethodPost:
+		case http.MethodPost, http.MethodPut, http.MethodPatch:
 			mediaType, _, _ := mime.ParseMediaType(c.GetHeader("Content-Type"))
 			if mediaType != "multipart/form-data" {
 				if err := c.ShouldBindJSON(obj); err != nil {

@@ -4,6 +4,7 @@ import (
 	"github.com/wangweihong/omnimam/internal/apiserver/service/v1/asset"
 	"github.com/wangweihong/omnimam/internal/apiserver/service/v1/canvas"
 	"github.com/wangweihong/omnimam/internal/apiserver/service/v1/identity"
+	"github.com/wangweihong/omnimam/internal/apiserver/service/v1/platform"
 	"github.com/wangweihong/omnimam/internal/apiserver/service/v1/prompt"
 	"github.com/wangweihong/omnimam/internal/apiserver/service/v1/setting"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
@@ -16,6 +17,7 @@ type Service interface {
 	Assets() asset.AssetSrv
 	Prompts() prompt.PromptSrv
 	Canvases() canvas.CanvasSrv
+	Platforms() platform.PlatformSrv
 }
 
 type service struct {
@@ -47,4 +49,8 @@ func (s *service) Prompts() prompt.PromptSrv {
 
 func (s *service) Canvases() canvas.CanvasSrv {
 	return canvas.NewService(s.store)
+}
+
+func (s *service) Platforms() platform.PlatformSrv {
+	return platform.NewService(s.store)
 }

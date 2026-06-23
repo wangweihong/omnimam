@@ -117,6 +117,25 @@ func (c *CompletedExtraConfig) New() error {
 		// canvases
 		&iapiserver.Project{},
 		&iapiserver.Canvas{},
+
+		// platform contracts
+		&iapiserver.Provider{},
+		&iapiserver.ProviderModel{},
+		&iapiserver.ProviderCapability{},
+		&iapiserver.SystemLLMConfig{},
+		&iapiserver.StorageBackend{},
+		&iapiserver.Asset{},
+		&iapiserver.AssetThumbnail{},
+		&iapiserver.Tag{},
+		&iapiserver.AssetTag{},
+		&iapiserver.AssetGroup{},
+		&iapiserver.AssetGroupMember{},
+		&iapiserver.AssetRelation{},
+		&iapiserver.Task{},
+		&iapiserver.FeatureFlag{},
+		&iapiserver.Role{},
+		&iapiserver.Permission{},
+		&iapiserver.UserRole{},
 	); err != nil {
 		return errors.Wrap(err, "EnsureScheme fail")
 	}

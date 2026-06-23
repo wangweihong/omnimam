@@ -28,6 +28,25 @@ type Factory interface {
 	Projects() ProjectStore
 	Canvases() CanvasStore
 
+	// platform contracts
+	Providers() ProviderStore
+	ProviderModels() ProviderModelStore
+	ProviderCapabilities() ProviderCapabilityStore
+	SystemLLMConfigs() SystemLLMConfigStore
+	StorageBackends() StorageBackendStore
+	AssetsV2() AssetStore
+	AssetThumbnails() AssetThumbnailStore
+	Tags() TagStore
+	AssetTags() AssetTagStore
+	AssetGroups() AssetGroupStore
+	AssetGroupMembers() AssetGroupMemberStore
+	AssetRelations() AssetRelationStore
+	Tasks() TaskStore
+	FeatureFlags() FeatureFlagStore
+	Roles() RoleStore
+	Permissions() PermissionStore
+	UserRoles() UserRoleStore
+
 	EnsureScheme(metaTypes ...any) error
 	Close() error
 }

@@ -132,3 +132,72 @@ func (ds *datastore) Projects() store.ProjectStore {
 func (ds *datastore) Canvases() store.CanvasStore {
 	return newCanvas(ds)
 }
+
+/* ------ platform contracts ------- */
+func (ds *datastore) Providers() store.ProviderStore {
+	return newProvider(ds)
+}
+
+func (ds *datastore) ProviderModels() store.ProviderModelStore {
+	return newProviderModel(ds)
+}
+
+func (ds *datastore) ProviderCapabilities() store.ProviderCapabilityStore {
+	return newProviderCapability(ds)
+}
+
+func (ds *datastore) SystemLLMConfigs() store.SystemLLMConfigStore {
+	return newSystemLLMConfig(ds)
+}
+
+func (ds *datastore) StorageBackends() store.StorageBackendStore {
+	return newStorageBackend(ds)
+}
+
+func (ds *datastore) AssetsV2() store.AssetStore {
+	return newPlatformAsset(ds)
+}
+
+func (ds *datastore) AssetThumbnails() store.AssetThumbnailStore {
+	return newAssetThumbnail(ds)
+}
+
+func (ds *datastore) Tags() store.TagStore {
+	return newTag(ds)
+}
+
+func (ds *datastore) AssetTags() store.AssetTagStore {
+	return newAssetTag(ds)
+}
+
+func (ds *datastore) AssetGroups() store.AssetGroupStore {
+	return newAssetGroup(ds)
+}
+
+func (ds *datastore) AssetGroupMembers() store.AssetGroupMemberStore {
+	return newAssetGroupMember(ds)
+}
+
+func (ds *datastore) AssetRelations() store.AssetRelationStore {
+	return newAssetRelation(ds)
+}
+
+func (ds *datastore) Tasks() store.TaskStore {
+	return newTask(ds)
+}
+
+func (ds *datastore) FeatureFlags() store.FeatureFlagStore {
+	return newFeatureFlag(ds)
+}
+
+func (ds *datastore) Roles() store.RoleStore {
+	return newRole(ds)
+}
+
+func (ds *datastore) Permissions() store.PermissionStore {
+	return newPermission(ds)
+}
+
+func (ds *datastore) UserRoles() store.UserRoleStore {
+	return newUserRole(ds)
+}

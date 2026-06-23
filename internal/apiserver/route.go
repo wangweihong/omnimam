@@ -7,6 +7,7 @@ import (
 	"github.com/wangweihong/omnimam/internal/apiserver/controller/v1/asset"
 	"github.com/wangweihong/omnimam/internal/apiserver/controller/v1/authentication"
 	"github.com/wangweihong/omnimam/internal/apiserver/controller/v1/canvas"
+	platformctrl "github.com/wangweihong/omnimam/internal/apiserver/controller/v1/platform"
 	"github.com/wangweihong/omnimam/internal/apiserver/controller/v1/prompt"
 	"github.com/wangweihong/omnimam/internal/apiserver/controller/v1/setting"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
@@ -30,14 +31,70 @@ func InstallApis(g *gin.Engine) *gin.Engine {
 	g.NoRoute(func(c *gin.Context) {
 		core.WriteResponse(c, errors.NewStatusF(code.ErrPageNotFound, "Page not found."), nil)
 	})
-	// storeIns, _ := postgresql.GetPostgresSQLFactoryOr(nil)
-	// v1 := g.Group("/v1/omnimam")
-	// {
-	// 	// installRegistryApis(v1, storeIns)
-	// 	// InstallApplicationApis(v1, storeIns)
-	// }
+	storeIns := store.Client()
+	if storeIns != nil {
+		v1 := g.Group("/api/v1")
+		{
+			installPlatformApis(v1, storeIns)
+			installAuthApis(v1, storeIns)
+			InstallSettingApis(v1, storeIns)
+			installAssetApis(v1, storeIns)
+			installPromptApis(v1, storeIns)
+			installCanvasApis(v1, storeIns)
+		}
+	}
 
 	return g
+}
+
+func installPlatformApis(rg *gin.RouterGroup, storeIns store.Factory) {
+	platformController := platformctrl.NewController(storeIns)
+
+	rg.GET("/me", platformController.Me)
+
+	providers := rg.Group("/providers")
+	{
+		providers.GET("", platformController.ListProviders)
+		providers.POST("", platformController.CreateProvider)
+		providers.PATCH("/:provider_id", platformController.UpdateProvider)
+		providers.GET("/:provider_id/models", platformController.ListProviderModels)
+		providers.POST("/:provider_id/models", platformController.CreateProviderModel)
+		providers.PATCH("/:provider_id/models/:model_id", platformController.UpdateProviderModel)
+	}
+
+	rg.GET("/system-llm-config", platformController.GetSystemLLMConfig)
+	rg.PUT("/system-llm-config", platformController.PutSystemLLMConfig)
+
+	storage := rg.Group("/storage-backends")
+	{
+		storage.GET("", platformController.ListStorageBackends)
+		storage.POST("", platformController.CreateStorageBackend)
+		storage.PATCH("/:backend_id", platformController.UpdateStorageBackend)
+	}
+
+	assets := rg.Group("/assets")
+	{
+		assets.GET("", platformController.ListAssets)
+		assets.POST("/upload", platformController.UploadAsset)
+		assets.POST("/search", platformController.SearchAssets)
+		assets.POST("/search/parse", platformController.ParseAssetSearch)
+		assets.GET("/:asset_id", platformController.GetAsset)
+		assets.PATCH("/:asset_id", platformController.UpdateAsset)
+		assets.GET("/:asset_id/content", platformController.GetAssetContent)
+		assets.GET("/:asset_id/thumbnail", platformController.GetAssetThumbnail)
+	}
+
+	rg.POST("/asset-groups", platformController.CreateAssetGroup)
+
+	tasks := rg.Group("/tasks")
+	{
+		tasks.GET("", platformController.ListTasks)
+		tasks.POST("", platformController.CreateTask)
+		tasks.GET("/:task_id", platformController.GetTask)
+		tasks.POST("/:task_id/cancel", platformController.CancelTask)
+		tasks.GET("/:task_id/events", platformController.TaskEvents)
+	}
+	rg.POST("/canvases/:canvas_id/run", platformController.RunCanvas)
 }
 
 func installAuthApis(rg *gin.RouterGroup, storeIns store.Factory) {
@@ -169,6 +226,7 @@ func installCanvasApis(rg *gin.RouterGroup, storeIns store.Factory) {
 		canvasv1.GET("/trash", canvasController.ListTrash)
 		canvasv1.POST("", canvasController.CreateCanvas)
 		canvasv1.GET("/:canvas_id", canvasController.GetCanvas)
+		canvasv1.PATCH("/:canvas_id", canvasController.UpdateCanvasMeta)
 		canvasv1.GET("/:canvas_id/meta", canvasController.GetCanvasMeta)
 		canvasv1.POST("/:canvas_id/meta", canvasController.UpdateCanvasMeta)
 		canvasv1.PUT("/:canvas_id", canvasController.SaveCanvas)
