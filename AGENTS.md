@@ -76,6 +76,7 @@ make format
 make lint
 ```
 
+- 代码提交前必须运行 `make build`，确认程序可以成功编译。
 - 修改 error code、generated contract、swagger、proto 或其他生成文件相关代码后，还必须运行对应 generate rule，例如 `make gen` 或项目中明确的生成目标。
 - 文档-only 修改不强制运行 `make format` 和 `make lint`，但必须检查文档内容和 git 状态。
 - 如果验证命令失败，交付结果时必须说明失败命令、失败原因和未完成风险。
