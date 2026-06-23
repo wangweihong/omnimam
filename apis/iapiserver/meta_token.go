@@ -3,9 +3,9 @@ package iapiserver
 import (
 	"time"
 
-	"github.com/wangweihong/omnimam/apis/imachinery"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"github.com/wangweihong/gotoolbox/pkg/hash"
+	"github.com/wangweihong/omnimam/apis/imachinery"
 	"gorm.io/gorm"
 )
 
@@ -23,7 +23,7 @@ type OneTimeToken struct {
 	Type        string          `json:"type" gorm:"column:type;index" binding:"required,oneof=saml"`
 	TTLSeconds  int64           `json:"ttl" gorm:"-"  binding:"required"` // ttl seconds
 	Payload     string          `json:"payload" gorm:"payload" binding:"required"`
-	PayloadHash string          `json:"-" gorm:"column:payload_hash;type:text,not null"`
+	PayloadHash string          `json:"-" gorm:"column:payload_hash;type:text;not null"`
 	ExpiresAt   imachinery.Time `json:"-" gorm:"column:expires_at;index;not null"` // 过期时间
 	Used        bool            `json:"-" gorm:"column:used;default:false;index"`
 }
