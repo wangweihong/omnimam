@@ -112,4 +112,4 @@ install.deepcopy-gen:
 .PHONY: install.go-gitlint
 install.go-gitlint:
 #	@$(GO) install github.com/llorllale/go-gitlint@lateset
-	@$(GO) get github.com/llorllale/go-gitlint
+	@$(GO) install github.com/llorllale/go-gitlint
