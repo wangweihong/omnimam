@@ -30,15 +30,15 @@ Options:
   DEBUG            Whether to generate debug symbols. Default is 0.
   BINS             The binaries to build. Default is all of cmd.
                    This option is available when using: make build/build.multiarch
-                   Example: make build BINS="omnimam-apiserver hubctl"
+                   Example: make build BINS="apiserver taskworker"
   IMAGES           Backend images to make. Default is all dir under build/docker/*.
                    This option is available when using: make image/image.multiarch/push/
-                   Example: make image.multiarch IMAGES="omnimam-apiserver hubctl"
+                   Example: make image.multiarch IMAGES="apiserver taskworker"
   REGISTRY_PREFIX  Docker registry prefix. Default is "".
                    Example: make push REGISTRY_PREFIX=harbor.registry.wang/exampled VERSION=v1.6.2
   PLATFORMS        The multiple platforms to build. Default is linux/amd64 and linux/arm64.
                    This option is available when using: make build.multiarch/image.build.multiarch/build.image.multiarch
-                   Example: make image.build.multiarch IMAGES="omnimam-apiserver hubctl" PLATFORMS="linux/amd64 linux/arm64".
+                   Example: make image.build.multiarch IMAGES="apiserver taskworker" PLATFORMS="linux/amd64 linux/arm64".
                    Support PLATFORMS check `go tool dist list` shows.
   VERSION          The version information compiled into binaries.
                    The default is obtained from gsemver or git.
@@ -50,6 +50,10 @@ export USAGE_OPTIONS
 .PHONY: build
 build:
 	@$(MAKE) go.build
+
+## verify: Run read-only quality gates without generating or formatting files.
+.PHONY: verify
+verify: lint test build
 
 ## build.multiarch: Build source code for multiple platforms. See option PLATFORMS.
 .PHONY: build.multiarch
@@ -128,7 +132,7 @@ check-updates:
 .PHONY: tidy
 tidy:
 	@echo "===========> Run go mod tidy"
-	@$(GO) mod tidy -compat=1.17
+	@$(GO) mod tidy -compat=1.26
 
 ## gen: Generate all necessary files, such as error code files.
 .PHONY: gen

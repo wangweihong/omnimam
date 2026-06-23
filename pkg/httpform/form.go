@@ -71,7 +71,7 @@ func ForwardForm(c *gin.Context, maxFileSize int64) (*httpcli.HttpRequestBuilder
 	// 3. 获取multipart读取器
 	reader, err := c.Request.MultipartReader()
 	if err != nil {
-		return nil, nil, errors.Errorf("failed to get multipart reader: %w", err)
+		return nil, nil, errors.Errorf("failed to get multipart reader: %v", err)
 	}
 
 	// 4. 获取表达所有数据

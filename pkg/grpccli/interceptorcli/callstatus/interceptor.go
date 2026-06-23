@@ -44,6 +44,9 @@ func UnaryClientInterceptor(skipperFunc ...skipper.SkipperFunc) grpc.UnaryClient
 		}
 
 		st := callstatus.ToError(cs)
+		if st == nil {
+			return nil
+		}
 		return st.Error()
 	}
 }

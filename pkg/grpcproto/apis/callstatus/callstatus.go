@@ -2,12 +2,14 @@ package callstatus
 
 import (
 	"github.com/wangweihong/gotoolbox/pkg/errors"
+
+	"github.com/wangweihong/omnimam/internal/pkg/code"
 )
 
 // ToError convert grpc call status to err.
 func ToError(cs *CallStatus) *errors.Status {
-	if cs == nil || cs.Code == 0 {
-		return errors.ToStatus(nil)
+	if cs == nil || cs.Code == 0 || int(cs.Code) == code.ErrSuccess {
+		return nil
 	}
 
 	// TODO: fixme
@@ -22,22 +24,13 @@ func ToError(cs *CallStatus) *errors.Status {
 
 // FromError convert err to grpc call status.
 func FromError(err error) *CallStatus {
-	//e := errors.FromError(err)
-	//if e == nil {
-	//	e = errors.Wrap(code.ErrSuccess, "")
-	//}
-	//
-	//cs := &CallStatus{
-	//	Code:        int64(e.Code()),
-	//	Message:     e.Message(),
-	//	Stack:       e.Stack(),
-	//	Description: e.Description(),
-	//}
-	//
-	//if errors.IsCode(e, code.ErrSuccess) {
-	//	cs.Stack = nil
-	//}
-	//
-	//return cs
-	return nil
+	if err == nil {
+		return &CallStatus{}
+	}
+	st := errors.ToStatus(err)
+	return &CallStatus{
+		Code:        int64(st.Code),
+		Message:     st.Message,
+		Description: st.Desc,
+	}
 }

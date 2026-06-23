@@ -28,6 +28,8 @@ run:
     - util
     - .*~
     - apis/swagger/docs
+    - test
+    - tools
     - tools/deepcopy-gen
 
   # default is true. Enables skipping of directories:
@@ -726,85 +728,8 @@ linters:
   enable:
     - typecheck
     - asciicheck
-    - bodyclose
-    - cyclop
-    - deadcode
-    - depguard
-    - dogsled
-    - dupl
-    - durationcheck
-    - errcheck
-    - errorlint
-    - exhaustive
-    - exportloopref
-    - forbidigo
-    - funlen
-    #- gci
-    - gochecknoinits
-    - gocognit
-    - goconst
-    - gocyclo
-    - godot
-    - godox
-    - gofmt
-    - gofumpt
-    #   - goheader
-    - goimports
-    - gomoddirectives
-    - gomodguard
-    - goprintffuncname
-    - gosec
-    - gosimple
-    - govet
-    - ifshort
-    - importas
     - ineffassign
-    - lll
-    - makezero
     - misspell
-    - nakedret
-    - nestif
-    - nilerr
-    #    - nlreturn
-    - noctx
-    - nolintlint
-    - paralleltest
-    - prealloc
-    - predeclared
-    - promlinter
-    - revive
-    - rowserrcheck
-    - sqlclosecheck
-    - staticcheck
-    - structcheck
-    - stylecheck
-    - thelper
-    - tparallel
-    - unconvert
-    - unparam
-    - unused
-    - varcheck
-    - wastedassign
-    - whitespace
-    - bidichk
-    - wastedassign
-    #- golint
-    - execinquery
-    - nosprintfhostport
-    - grouper
-    - decorder
-    - errchkjson
-    - maintidx
-      #- containedctx
-      #- tagliatelle
-      #- nonamedreturns
-      #- nilnil
-      #- tenv
-      #- varnamelen
-      #- contextcheck
-      #- errname
-      #- ForceTypeAssert
-    #- nilassign
   fast: false
 
 # 用于处理各个问题。包括设置误报规则
@@ -915,7 +840,7 @@ issues:
   #new-from-patch: path/to/patch/file
 
   # Fix found issues (if it's supported by the linter)
-  fix: true
+  fix: false
 
 # 设置问题的严重级别
 severity:

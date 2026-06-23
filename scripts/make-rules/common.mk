@@ -32,6 +32,11 @@ ifeq ($(origin TOOLS_DIR),undefined)
 TOOLS_DIR := $(OUTPUT_DIR)/tools
 $(shell mkdir -p $(TOOLS_DIR))
 endif
+ifeq ($(origin TOOLS_BIN_DIR),undefined)
+TOOLS_BIN_DIR := $(TOOLS_DIR)/bin
+$(shell mkdir -p $(TOOLS_BIN_DIR))
+endif
+export PATH := $(TOOLS_BIN_DIR):$(PATH)
 ifeq ($(origin TMP_DIR),undefined)
 TMP_DIR := $(OUTPUT_DIR)/tmp
 $(shell mkdir -p $(TMP_DIR))
@@ -113,13 +118,13 @@ SPACE := $(EMPTY) $(EMPTY)
 
 # Specify components which need generate config from template
 ifeq ($(origin COMPONENTS),undefined)
-	COMPONENTS?= example-server example-grpc
+	COMPONENTS?= apiserver taskworker
 endif
 
 
 # Specify components which need certificate
 ifeq ($(origin CERTIFICATES),undefined)
-	CERTIFICATES?= example-server example-grpc
+	CERTIFICATES?= apiserver
 endif
 
 # 这种写法的目的是如果发现未定义才进行赋值

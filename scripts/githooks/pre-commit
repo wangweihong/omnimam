@@ -26,11 +26,11 @@ then
 fi
 
 # avoid push to protected branch directly
-protected_branch="$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')"
+protected_branch="$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@')"
 branch="$(git rev-parse --abbrev-ref HEAD)"
 
 # a branch name where you want to prevent git push. In this case, it's "master"
-if [ "$branch" = "$protected_branch" ]; then
+if [ -n "$protected_branch" ] && [ "$branch" = "$protected_branch" ]; then
   echo "You can't commit directly to '"${branch}"' branch" # webstorm or intellij will show this as popup
   exit 1 # if you remove this line then it won't block push but send message to group and on command line
 fi

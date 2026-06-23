@@ -52,7 +52,7 @@ gen.defaultconfigs: $(addprefix gen.defaultconfigs., $(COMPONENTS))
 .PHONY: gen.clean
 gen.clean:
 	@echo "===========> Clean gen files in wildcards '*_generated.go' in ${ROOT_DIR}/internal/pkg/code"
-	@$(FIND) -path ${ROOT_DIR}/internal/pkg/code -type f -name '*_generated.go' -delete
+	@find ${ROOT_DIR}/internal/pkg/code -type f -name '*_generated.go' -delete
 
 	
 .PHONY: gen.deepcopy

@@ -25,7 +25,7 @@ install.swagger:
 
 .PHONY: install.golangci-lint
 install.golangci-lint:
-	@$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.2
+	@$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
 	@golangci-lint completion bash > $(HOME)/.golangci-lint.bash
 	@if ! grep -q .golangci-lint.bash $(HOME)/.bashrc; then echo "source \$$HOME/.golangci-lint.bash" >> $(HOME)/.bashrc; fi
 
@@ -64,9 +64,13 @@ install.protoc-gen-go:
 
 .PHONY: install.protoc
 install.protoc:
-	#@apt install -y protobuf-compiler
-	@curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v3.15.8/protoc-3.15.8-linux-x86_64.zip
-	@unzip protoc-3.15.8-linux-x86_64.zip -d /usr/
+	@mkdir -p $(TOOLS_DIR)/downloads $(TOOLS_BIN_DIR)
+	@curl -L -o $(TOOLS_DIR)/downloads/protoc-3.15.8-linux-x86_64.zip \
+		https://github.com/protocolbuffers/protobuf/releases/download/v3.15.8/protoc-3.15.8-linux-x86_64.zip
+	@rm -rf $(TOOLS_DIR)/protoc-3.15.8
+	@mkdir -p $(TOOLS_DIR)/protoc-3.15.8
+	@unzip -q $(TOOLS_DIR)/downloads/protoc-3.15.8-linux-x86_64.zip -d $(TOOLS_DIR)/protoc-3.15.8
+	@ln -sf $(TOOLS_DIR)/protoc-3.15.8/bin/protoc $(TOOLS_BIN_DIR)/protoc
 
 .PHONY: install.grpcurl
 install.grpcurl:

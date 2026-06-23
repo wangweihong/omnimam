@@ -18,7 +18,7 @@ ifneq ($(EXTRA_ARGS), )
 _DOCKER_BUILD_EXTRA_ARGS += $(EXTRA_ARGS)
 endif
 
-GO_DOCKER_VERSION ?= 1.17
+GO_DOCKER_VERSION ?= 1.26
 GOIMAGE_VERSION ?= golang:$(GO_DOCKER_VERSION)
 
 # Determine image files by looking into build/docker/*/Dockerfile
