@@ -3,10 +3,11 @@ package postgresql
 import (
 	"context"
 
-	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/wangweihong/omnimam/apis/iapiserver"
 )
 
 type user struct {

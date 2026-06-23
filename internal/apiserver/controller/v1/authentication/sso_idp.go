@@ -8,12 +8,13 @@ import (
 	"github.com/crewjam/saml"
 	"github.com/gin-gonic/gin"
 
+	"github.com/wangweihong/gotoolbox/pkg/log"
+	"github.com/wangweihong/gotoolbox/pkg/randutil"
+
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/omnimam/apis/imachinery"
 	"github.com/wangweihong/omnimam/internal/pkg/codec"
 	"github.com/wangweihong/omnimam/pkg/core"
-	"github.com/wangweihong/gotoolbox/pkg/log"
-	"github.com/wangweihong/gotoolbox/pkg/randutil"
 )
 
 // IdpServeSAMLProtocolSSO  处理从sp接收到的sso请求

@@ -7,9 +7,10 @@ import (
 	gerrors "errors"
 
 	"github.com/pquerna/otp/totp"
-	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"gorm.io/gorm"
+
+	"github.com/wangweihong/omnimam/apis/iapiserver"
 )
 
 func (s *identityService) UserOTPGetOrAdd(ctx context.Context, req *iapiserver.OTPGenerateRequest) (string, error) {

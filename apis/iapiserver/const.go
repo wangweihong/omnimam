@@ -6,7 +6,6 @@ const (
 	HealthStatusUnknown   = "unknown"
 )
 
-
-const(
-	GinContextKeyUser="user"
+const (
+	GinContextKeyUser = "user"
 )

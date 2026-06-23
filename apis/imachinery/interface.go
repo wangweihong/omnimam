@@ -4,7 +4,8 @@ import "github.com/gin-gonic/gin"
 
 // 参数解析后的处理参数
 // 如Get请求时需要传递slice,但直接传递slice会有问题，因此一般都会传递一个带分隔符的字符串，再通过
-//		分隔符切换成数组
+//
+//	分隔符切换成数组
 type PostBinder interface {
 	PostBind() error
 }

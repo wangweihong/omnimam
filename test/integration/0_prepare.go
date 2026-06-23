@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/spf13/viper"
+	"github.com/wangweihong/gotoolbox/pkg/errors"
+
 	"github.com/wangweihong/omnimam/internal/apiserver"
 	"github.com/wangweihong/omnimam/internal/apiserver/config"
 	"github.com/wangweihong/omnimam/internal/apiserver/options"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
-	"github.com/wangweihong/gotoolbox/pkg/errors"
 )
 
 func startTestDB(t *testing.T) store.Factory {

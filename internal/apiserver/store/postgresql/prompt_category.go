@@ -4,8 +4,9 @@ import (
 	"context"
 
 	"github.com/wangweihong/gotoolbox/pkg/errors"
-	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"gorm.io/gorm"
+
+	"github.com/wangweihong/omnimam/apis/iapiserver"
 )
 
 type promptCategory struct {
@@ -41,7 +42,10 @@ func (s *promptCategory) Add(ctx context.Context, data *iapiserver.PromptCategor
 	return data, errors.WithStack(err)
 }
 
-func (s *promptCategory) Update(ctx context.Context, data *iapiserver.PromptCategory) (*iapiserver.PromptCategory, error) {
+func (s *promptCategory) Update(
+	ctx context.Context,
+	data *iapiserver.PromptCategory,
+) (*iapiserver.PromptCategory, error) {
 	result := s.ds.db.WithContext(ctx).
 		Model(&iapiserver.PromptCategory{}).
 		Where("id = ?", data.ID).

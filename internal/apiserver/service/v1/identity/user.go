@@ -3,11 +3,15 @@ package identity
 import (
 	"context"
 
-	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
+
+	"github.com/wangweihong/omnimam/apis/iapiserver"
 )
 
-func (s *identityService) UserList(ctx context.Context, req *iapiserver.UserListRequest) (*iapiserver.UserListResponse, error) {
+func (s *identityService) UserList(
+	ctx context.Context,
+	req *iapiserver.UserListRequest,
+) (*iapiserver.UserListResponse, error) {
 	metas, total, err := s.store.Users().List(ctx, req)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -18,7 +22,10 @@ func (s *identityService) UserList(ctx context.Context, req *iapiserver.UserList
 	return resp, nil
 }
 
-func (s *identityService) UserGet(ctx context.Context, req *iapiserver.UserGetRequest) (*iapiserver.UserGetResponse, error) {
+func (s *identityService) UserGet(
+	ctx context.Context,
+	req *iapiserver.UserGetRequest,
+) (*iapiserver.UserGetResponse, error) {
 	meta, err := s.store.Users().Get(ctx, req.ID)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -27,7 +34,10 @@ func (s *identityService) UserGet(ctx context.Context, req *iapiserver.UserGetRe
 	return &iapiserver.UserGetResponse{User: *meta}, nil
 }
 
-func (s *identityService) UserAdd(ctx context.Context, req *iapiserver.UserAddRequest) (*iapiserver.UserAddResponse, error) {
+func (s *identityService) UserAdd(
+	ctx context.Context,
+	req *iapiserver.UserAddRequest,
+) (*iapiserver.UserAddResponse, error) {
 	meta, err := s.store.Users().Add(ctx, &req.User)
 	if err != nil {
 		return nil, errors.WithStack(err)

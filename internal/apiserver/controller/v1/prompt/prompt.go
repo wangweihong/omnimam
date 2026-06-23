@@ -76,19 +76,27 @@ func (pc *PromptController) DeleteItem(c *gin.Context) {
 }
 
 func (pc *PromptController) BatchDeleteItems(c *gin.Context) {
-	core.Run(c, &iapiserver.PromptItemBatchDeleteRequest{}, func(r *iapiserver.PromptItemBatchDeleteRequest) (any, error) {
-		removed, err := pc.srv.Prompts().PromptItemBatchDelete(c, r)
-		if err != nil {
-			return nil, err
-		}
-		return gin.H{"removed": removed}, nil
-	})
+	core.Run(
+		c,
+		&iapiserver.PromptItemBatchDeleteRequest{},
+		func(r *iapiserver.PromptItemBatchDeleteRequest) (any, error) {
+			removed, err := pc.srv.Prompts().PromptItemBatchDelete(c, r)
+			if err != nil {
+				return nil, err
+			}
+			return gin.H{"removed": removed}, nil
+		},
+	)
 }
 
 func (pc *PromptController) CreateCategory(c *gin.Context) {
-	core.Run(c, &iapiserver.PromptCategoryCreateRequest{}, func(r *iapiserver.PromptCategoryCreateRequest) (any, error) {
-		return pc.srv.Prompts().PromptCategoryCreate(c, r)
-	})
+	core.Run(
+		c,
+		&iapiserver.PromptCategoryCreateRequest{},
+		func(r *iapiserver.PromptCategoryCreateRequest) (any, error) {
+			return pc.srv.Prompts().PromptCategoryCreate(c, r)
+		},
+	)
 }
 
 func (pc *PromptController) UpdateCategory(c *gin.Context) {

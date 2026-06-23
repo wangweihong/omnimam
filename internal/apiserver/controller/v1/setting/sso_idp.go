@@ -8,10 +8,14 @@ import (
 )
 
 func (rc *SettingController) IdentityProviderList(c *gin.Context) {
-	core.Run(c, &iapiserver.IdentityProviderListRequest{}, func(r *iapiserver.IdentityProviderListRequest) (any, error) {
-		ret, err := rc.srv.Settings().IdentityProviderList(c, r)
-		return ret, err
-	})
+	core.Run(
+		c,
+		&iapiserver.IdentityProviderListRequest{},
+		func(r *iapiserver.IdentityProviderListRequest) (any, error) {
+			ret, err := rc.srv.Settings().IdentityProviderList(c, r)
+			return ret, err
+		},
+	)
 }
 
 func (rc *SettingController) IdentityProviderGet(c *gin.Context) {
@@ -30,15 +34,23 @@ func (rc *SettingController) IdentityProviderAdd(c *gin.Context) {
 }
 
 func (rc *SettingController) IdentityProviderUpdate(c *gin.Context) {
-	core.Run(c, &iapiserver.IdentityProviderUpdateRequest{}, func(r *iapiserver.IdentityProviderUpdateRequest) (any, error) {
-		err := rc.srv.Settings().IdentityProviderUpdate(c, r)
-		return nil, err
-	})
+	core.Run(
+		c,
+		&iapiserver.IdentityProviderUpdateRequest{},
+		func(r *iapiserver.IdentityProviderUpdateRequest) (any, error) {
+			err := rc.srv.Settings().IdentityProviderUpdate(c, r)
+			return nil, err
+		},
+	)
 }
 
 func (rc *SettingController) IdentityProviderDelete(c *gin.Context) {
-	core.Run(c, &iapiserver.IdentityProviderDeleteRequest{}, func(r *iapiserver.IdentityProviderDeleteRequest) (any, error) {
-		err := rc.srv.Settings().IdentityProviderDelete(c, r)
-		return nil, err
-	})
+	core.Run(
+		c,
+		&iapiserver.IdentityProviderDeleteRequest{},
+		func(r *iapiserver.IdentityProviderDeleteRequest) (any, error) {
+			err := rc.srv.Settings().IdentityProviderDelete(c, r)
+			return nil, err
+		},
+	)
 }

@@ -2,6 +2,7 @@ package asset
 
 import (
 	"github.com/gin-gonic/gin"
+
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	srvv1 "github.com/wangweihong/omnimam/internal/apiserver/service/v1"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
@@ -93,9 +94,13 @@ func (ac *AssetController) CreateItem(c *gin.Context) {
 }
 
 func (ac *AssetController) BatchCreateItems(c *gin.Context) {
-	core.Run(c, &iapiserver.AssetItemBatchCreateRequest{}, func(r *iapiserver.AssetItemBatchCreateRequest) (any, error) {
-		return ac.srv.Assets().AssetItemBatchCreate(c, r)
-	})
+	core.Run(
+		c,
+		&iapiserver.AssetItemBatchCreateRequest{},
+		func(r *iapiserver.AssetItemBatchCreateRequest) (any, error) {
+			return ac.srv.Assets().AssetItemBatchCreate(c, r)
+		},
+	)
 }
 
 func (ac *AssetController) UpdateItem(c *gin.Context) {
@@ -118,13 +123,17 @@ func (ac *AssetController) DeleteItem(c *gin.Context) {
 }
 
 func (ac *AssetController) BatchDeleteItems(c *gin.Context) {
-	core.Run(c, &iapiserver.AssetItemBatchDeleteRequest{}, func(r *iapiserver.AssetItemBatchDeleteRequest) (any, error) {
-		removed, err := ac.srv.Assets().AssetItemBatchDelete(c, r)
-		if err != nil {
-			return nil, err
-		}
-		return gin.H{"removed": removed}, nil
-	})
+	core.Run(
+		c,
+		&iapiserver.AssetItemBatchDeleteRequest{},
+		func(r *iapiserver.AssetItemBatchDeleteRequest) (any, error) {
+			removed, err := ac.srv.Assets().AssetItemBatchDelete(c, r)
+			if err != nil {
+				return nil, err
+			}
+			return gin.H{"removed": removed}, nil
+		},
+	)
 }
 
 func (ac *AssetController) BatchMoveItems(c *gin.Context) {

@@ -6,6 +6,7 @@ import (
 
 	gvalidator "github.com/go-playground/validator/v10"
 	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/wangweihong/omnimam/pkg/validator"
 )
 

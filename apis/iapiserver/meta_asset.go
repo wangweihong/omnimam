@@ -25,8 +25,8 @@ func (AssetLibrary) TableName() string {
 type AssetCategory struct {
 	imachinery.ObjectMeta
 	LibraryID string `json:"library_id" gorm:"column:library_id;type:varchar(64);not null;index"`
-	Type      string `json:"type" gorm:"column:type;type:varchar(32);not null;default:image"`
-	Dir       string `json:"dir" gorm:"column:dir;type:varchar(128)"`
+	Type      string `json:"type"       gorm:"column:type;type:varchar(32);not null;default:image"`
+	Dir       string `json:"dir"        gorm:"column:dir;type:varchar(128)"`
 	SortOrder int    `json:"sort_order" gorm:"column:sort_order;default:0"`
 }
 
@@ -63,13 +63,13 @@ type AssetItemRegistration struct {
 
 type AssetItem struct {
 	imachinery.ObjectMeta
-	LibraryID  string `json:"library_id" gorm:"column:library_id;type:varchar(64);not null;index"`
+	LibraryID  string `json:"library_id"  gorm:"column:library_id;type:varchar(64);not null;index"`
 	CategoryID string `json:"category_id" gorm:"column:category_id;type:varchar(64);not null;index"`
-	URL        string `json:"url" gorm:"column:url;type:varchar(512);not null"`
-	Kind       string `json:"kind" gorm:"column:kind;type:varchar(32);not null;default:image"`
-	Size       int64  `json:"size" gorm:"column:size"`
-	Format     string `json:"format" gorm:"column:format;type:varchar(16)"`
-	SortOrder  int    `json:"sort_order" gorm:"column:sort_order;default:0"`
+	URL        string `json:"url"         gorm:"column:url;type:varchar(512);not null"`
+	Kind       string `json:"kind"        gorm:"column:kind;type:varchar(32);not null;default:image"`
+	Size       int64  `json:"size"        gorm:"column:size"`
+	Format     string `json:"format"      gorm:"column:format;type:varchar(16)"`
+	SortOrder  int    `json:"sort_order"  gorm:"column:sort_order;default:0"`
 }
 
 func (AssetItem) TableName() string {
@@ -85,8 +85,8 @@ const (
 
 type PromptLibrary struct {
 	imachinery.ObjectMeta
-	System   bool `json:"system" gorm:"column:system;type:boolean;not null;default:false"`
-	Active   bool `json:"active" gorm:"column:active;type:boolean;not null;default:false"`
+	System   bool `json:"system"   gorm:"column:system;type:boolean;not null;default:false"`
+	Active   bool `json:"active"   gorm:"column:active;type:boolean;not null;default:false"`
 	Readonly bool `json:"readonly" gorm:"column:readonly;type:boolean;not null;default:false"`
 }
 
@@ -105,11 +105,11 @@ func (PromptCategory) TableName() string {
 
 type PromptItem struct {
 	imachinery.ObjectMeta
-	LibraryID  string            `json:"library_id" gorm:"column:library_id;type:varchar(64);not null;index"`
-	CategoryID string            `json:"category_id" gorm:"column:category_id;type:varchar(64);not null;index"`
-	Positive   string            `json:"positive" gorm:"column:positive;type:text;not null"`
-	Negative   string            `json:"negative" gorm:"column:negative;type:text"`
-	Scene      string            `json:"scene" gorm:"column:scene;type:varchar(500)"`
+	LibraryID  string            `json:"library_id"       gorm:"column:library_id;type:varchar(64);not null;index"`
+	CategoryID string            `json:"category_id"      gorm:"column:category_id;type:varchar(64);not null;index"`
+	Positive   string            `json:"positive"         gorm:"column:positive;type:text;not null"`
+	Negative   string            `json:"negative"         gorm:"column:negative;type:text"`
+	Scene      string            `json:"scene"            gorm:"column:scene;type:varchar(500)"`
 	Params     imachinery.Extend `json:"params,omitempty" gorm:"-"`
 }
 
@@ -128,21 +128,21 @@ func (Project) TableName() string {
 
 type Canvas struct {
 	imachinery.ObjectMeta
-	Title       string            `json:"title" gorm:"column:title;type:varchar(80);not null"`
-	Icon        string            `json:"icon" gorm:"column:icon;type:varchar(32)"`
-	Kind        string            `json:"kind" gorm:"column:kind;type:varchar(16);not null;default:classic"`
-	Owner       string            `json:"owner" gorm:"column:owner;type:varchar(40)"`
-	Color       string            `json:"color" gorm:"column:color;type:varchar(16)"`
-	Pinned      bool              `json:"pinned" gorm:"column:pinned;type:boolean;not null;default:false"`
-	ProjectID   string            `json:"project_id" gorm:"column:project_id;type:varchar(64);not null;index"`
-	DeletedAt   int64             `json:"deleted_at" gorm:"column:deleted_at"`
-	BoardX      float64           `json:"board_x" gorm:"column:board_x"`
-	BoardY      float64           `json:"board_y" gorm:"column:board_y"`
-	Nodes       imachinery.Extend `json:"nodes,omitempty" gorm:"-"`
+	Title       string            `json:"title"                 gorm:"column:title;type:varchar(80);not null"`
+	Icon        string            `json:"icon"                  gorm:"column:icon;type:varchar(32)"`
+	Kind        string            `json:"kind"                  gorm:"column:kind;type:varchar(16);not null;default:classic"`
+	Owner       string            `json:"owner"                 gorm:"column:owner;type:varchar(40)"`
+	Color       string            `json:"color"                 gorm:"column:color;type:varchar(16)"`
+	Pinned      bool              `json:"pinned"                gorm:"column:pinned;type:boolean;not null;default:false"`
+	ProjectID   string            `json:"project_id"            gorm:"column:project_id;type:varchar(64);not null;index"`
+	DeletedAt   int64             `json:"deleted_at"            gorm:"column:deleted_at"`
+	BoardX      float64           `json:"board_x"               gorm:"column:board_x"`
+	BoardY      float64           `json:"board_y"               gorm:"column:board_y"`
+	Nodes       imachinery.Extend `json:"nodes,omitempty"       gorm:"-"`
 	Connections imachinery.Extend `json:"connections,omitempty" gorm:"-"`
-	Viewport    imachinery.Extend `json:"viewport,omitempty" gorm:"-"`
-	Logs        imachinery.Extend `json:"logs,omitempty" gorm:"-"`
-	Settings    imachinery.Extend `json:"settings,omitempty" gorm:"-"`
+	Viewport    imachinery.Extend `json:"viewport,omitempty"    gorm:"-"`
+	Logs        imachinery.Extend `json:"logs,omitempty"        gorm:"-"`
+	Settings    imachinery.Extend `json:"settings,omitempty"    gorm:"-"`
 }
 
 func (Canvas) TableName() string {

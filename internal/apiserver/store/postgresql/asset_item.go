@@ -3,9 +3,10 @@ package postgresql
 import (
 	"context"
 
-	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"gorm.io/gorm"
+
+	"github.com/wangweihong/omnimam/apis/iapiserver"
 )
 
 type assetItem struct {
@@ -16,7 +17,10 @@ func newAssetItem(ds *datastore) *assetItem {
 	return &assetItem{ds}
 }
 
-func (s *assetItem) List(ctx context.Context, param *iapiserver.AssetItemListRequest) ([]*iapiserver.AssetItem, int64, error) {
+func (s *assetItem) List(
+	ctx context.Context,
+	param *iapiserver.AssetItemListRequest,
+) ([]*iapiserver.AssetItem, int64, error) {
 	var meta []*iapiserver.AssetItem
 	var total int64
 
@@ -111,7 +115,11 @@ func (s *assetItem) BatchDelete(ctx context.Context, ids []string, libraryID str
 	return int(result.RowsAffected), nil
 }
 
-func (s *assetItem) BatchMove(ctx context.Context, ids []string, targetLibraryID, targetCategoryID string) (int, error) {
+func (s *assetItem) BatchMove(
+	ctx context.Context,
+	ids []string,
+	targetLibraryID, targetCategoryID string,
+) (int, error) {
 	result := s.ds.db.WithContext(ctx).
 		Model(&iapiserver.AssetItem{}).
 		Where("id IN ?", ids).

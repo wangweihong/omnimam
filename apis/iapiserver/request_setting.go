@@ -2,16 +2,17 @@ package iapiserver
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/wangweihong/omnimam/pkg/httpform"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"github.com/wangweihong/gotoolbox/pkg/stringutil"
+
+	"github.com/wangweihong/omnimam/pkg/httpform"
 )
 
 type (
 	IdentityProviderMetadataUpsetRequest struct {
 		// idp的访问端点
-		Endpoint          string `json:"endpoint" form:"endpoint" binding:"required"`
-		AuthnNameIDFormat string `json:"authn_name_id_format" form:"authn_name_id_format"`
+		Endpoint          string `json:"endpoint"                  form:"endpoint"                  binding:"required"`
+		AuthnNameIDFormat string `json:"authn_name_id_format"      form:"authn_name_id_format"`
 		// idp的前端登录路径(前后端分离). 如果发起idp sso操作时，idp没有登录成功，应该重定向前端哪个url
 		RedirectSSOFrontendURL string `json:"redirect_sso_frontend_url" form:"redirect_sso_frontend_url" binding:"required"`
 		KeyEncode              []byte `json:"-"`
@@ -60,7 +61,7 @@ type (
 
 type (
 	ServiceProviderMetadataUpsetRequest struct {
-		Endpoint          string `json:"endpoint" form:"endpoint" binding:"required"`
+		Endpoint          string `json:"endpoint"             form:"endpoint"             binding:"required"`
 		AuthnNameIDFormat string `json:"authn_name_id_format" form:"authn_name_id_format"`
 		KeyEncode         []byte `json:"-"`
 		CertEncode        []byte `json:"-"`

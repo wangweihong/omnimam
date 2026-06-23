@@ -12,13 +12,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/wangweihong/gotoolbox/pkg/httpcli"
+	"github.com/wangweihong/gotoolbox/pkg/httpcli/def"
+	"github.com/wangweihong/gotoolbox/pkg/json"
+
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/omnimam/internal/apiserver"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
 	"github.com/wangweihong/omnimam/pkg/httpform"
-	"github.com/wangweihong/gotoolbox/pkg/httpcli"
-	"github.com/wangweihong/gotoolbox/pkg/httpcli/def"
-	"github.com/wangweihong/gotoolbox/pkg/json"
 )
 
 func TestSSOIdentityProviderMetadataGenerate_Integration(t *testing.T) {
@@ -207,28 +208,32 @@ func TestSSOServiceProviderMetadataGet_Integration(t *testing.T) {
 }
 
 func TestSSOServiceProviderMetadataDownload_Integration(t *testing.T) {
-	Convey("TestSSOIdentityProvideTestSSOServiceProviderMetadataDownload_IntegrationrMetadataGet_Integration", t, func() {
-		storeIns := startTestDB(t)
+	Convey(
+		"TestSSOIdentityProvideTestSSOServiceProviderMetadataDownload_IntegrationrMetadataGet_Integration",
+		t,
+		func() {
+			storeIns := startTestDB(t)
 
-		router := gin.Default()
-		rg := router.Group("/v1/omnimam")
-		apiserver.InstallMiddleware(router)
-		apiserver.InstallSettingApis(rg, storeIns)
+			router := gin.Default()
+			rg := router.Group("/v1/omnimam")
+			apiserver.InstallMiddleware(router)
+			apiserver.InstallSettingApis(rg, storeIns)
 
-		req, err := httpcli.NewHttpRequestBuilder().
-			GET().
-			WithEndpoint("127.0.0.1:8080").
-			WithPath("/v1/omnimam/setting/sso/saml/sp/metadata/download").
-			Build().ConvertRequestWithContext(context.Background())
-		So(err, ShouldBeNil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-		So(w.Code, ShouldEqual, http.StatusOK)
-		So(w.Header().Get("Content-Type"), ShouldEqual, "application/octet-stream")
-		So(w.Header().Get("Content-Disposition"), ShouldNotBeEmpty)
+			req, err := httpcli.NewHttpRequestBuilder().
+				GET().
+				WithEndpoint("127.0.0.1:8080").
+				WithPath("/v1/omnimam/setting/sso/saml/sp/metadata/download").
+				Build().ConvertRequestWithContext(context.Background())
+			So(err, ShouldBeNil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			So(w.Code, ShouldEqual, http.StatusOK)
+			So(w.Header().Get("Content-Type"), ShouldEqual, "application/octet-stream")
+			So(w.Header().Get("Content-Disposition"), ShouldNotBeEmpty)
 
-		So(httpcli.DownloadFile(w.Header(), w.Body.Bytes(), "./testdata"), ShouldBeNil)
-		_, err = os.Stat("./testdata/metadata.xml")
-		So(err, ShouldBeNil)
-	})
+			So(httpcli.DownloadFile(w.Header(), w.Body.Bytes(), "./testdata"), ShouldBeNil)
+			_, err = os.Stat("./testdata/metadata.xml")
+			So(err, ShouldBeNil)
+		},
+	)
 }

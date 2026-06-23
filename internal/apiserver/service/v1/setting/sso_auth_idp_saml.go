@@ -23,17 +23,21 @@ import (
 	"github.com/crewjam/saml/xmlenc"
 	xrv "github.com/mattermost/xml-roundtrip-validator"
 	dsig "github.com/russellhaering/goxmldsig"
-	"github.com/wangweihong/omnimam/apis/iapiserver"
-	"github.com/wangweihong/omnimam/internal/apiserver/store"
 	gx509 "github.com/wangweihong/gotoolbox/pkg/certificate/x509"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"github.com/wangweihong/gotoolbox/pkg/log"
 	"github.com/wangweihong/gotoolbox/pkg/randutil"
 	"github.com/wangweihong/gotoolbox/pkg/stringutil"
+
+	"github.com/wangweihong/omnimam/apis/iapiserver"
+	"github.com/wangweihong/omnimam/internal/apiserver/store"
 )
 
 // 对接收到的sp的SAML请求进行验证回应
-func (s *settingService) SAMLProtocolSSOAuth(ctx context.Context, req *iapiserver.IdpServeSSOAnswerRequest) (*bytes.Buffer, error) {
+func (s *settingService) SAMLProtocolSSOAuth(
+	ctx context.Context,
+	req *iapiserver.IdpServeSSOAnswerRequest,
+) (*bytes.Buffer, error) {
 	meta, err := s.store.Settings().GetByName(ctx, iapiserver.SettingKindSSOSamlIdpMetadata)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -79,7 +83,12 @@ type IdpAuthnRequest struct {
 	Now                     time.Time
 }
 
-func (req IdpAuthnRequest) Validate(ctx context.Context, ed *saml.EntityDescriptor, ssoURL *url.URL, spStore store.ServiceProviderStore) error {
+func (req IdpAuthnRequest) Validate(
+	ctx context.Context,
+	ed *saml.EntityDescriptor,
+	ssoURL *url.URL,
+	spStore store.ServiceProviderStore,
+) error {
 	if err := xrv.Validate(bytes.NewReader(req.RequestBuffer)); err != nil {
 		return errors.Errorf("validate err:%v", err)
 	}
@@ -116,7 +125,7 @@ func (req IdpAuthnRequest) Validate(ctx context.Context, ed *saml.EntityDescript
 	// find the service provider
 	serviceProviderID := req.Request.Issuer.Value
 	// 从中获取得到对应的sp的配置
-	serviceProvider, err := spStore.GetByKey(ctx, iapiserver.SSOProtocolSAML,serviceProviderID)
+	serviceProvider, err := spStore.GetByKey(ctx, iapiserver.SSOProtocolSAML, serviceProviderID)
 	if err == os.ErrNotExist {
 		return errors.Errorf("cannot handle request from unknown service provider %s", serviceProviderID)
 	} else if err != nil {
@@ -229,7 +238,8 @@ func (req IdpAuthnRequest) MakeAssertion(ctx context.Context, ed *saml.EntityDes
 	}
 
 	for _, requestedAttribute := range attributeConsumingService.RequestedAttributes {
-		if requestedAttribute.NameFormat == "urn:oasis:names:tc:SAML:2.0:attrname-format:basic" || requestedAttribute.NameFormat == "urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified" {
+		if requestedAttribute.NameFormat == "urn:oasis:names:tc:SAML:2.0:attrname-format:basic" ||
+			requestedAttribute.NameFormat == "urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified" {
 			attrName := requestedAttribute.Name
 			attrName = regexp.MustCompile("[^A-Za-z0-9]+").ReplaceAllString(attrName, "")
 			switch attrName {
@@ -528,7 +538,8 @@ func (req *IdpAuthnRequest) getSPEncryptionCert() (*x509.Certificate, error) {
 	// non-empty cert we find.
 	if certStr == "" {
 		for _, keyDescriptor := range req.SPSSODescriptor.KeyDescriptors {
-			if keyDescriptor.Use == "" && len(keyDescriptor.KeyInfo.X509Data.X509Certificates) != 0 && keyDescriptor.KeyInfo.X509Data.X509Certificates[0].Data != "" {
+			if keyDescriptor.Use == "" && len(keyDescriptor.KeyInfo.X509Data.X509Certificates) != 0 &&
+				keyDescriptor.KeyInfo.X509Data.X509Certificates[0].Data != "" {
 				certStr = keyDescriptor.KeyInfo.X509Data.X509Certificates[0].Data
 				break
 			}
@@ -798,7 +809,9 @@ func samlEntityDescriptorGenerate(meta *iapiserver.Setting) (*IdentityProvider, 
 							},
 						},
 					},
-					NameIDFormats: []saml.NameIDFormat{saml.NameIDFormat("urn:oasis:names:tc:SAML:2.0:nameid-format:transient")},
+					NameIDFormats: []saml.NameIDFormat{
+						saml.NameIDFormat("urn:oasis:names:tc:SAML:2.0:nameid-format:transient"),
+					},
 				},
 				SingleSignOnServices: []saml.Endpoint{
 					{

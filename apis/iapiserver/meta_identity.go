@@ -1,9 +1,10 @@
 package iapiserver
 
 import (
-	"github.com/wangweihong/omnimam/apis/imachinery"
 	"github.com/wangweihong/gotoolbox/pkg/randutil"
 	"gorm.io/gorm"
+
+	"github.com/wangweihong/omnimam/apis/imachinery"
 )
 
 const (
@@ -39,7 +40,7 @@ type UserToken struct {
 type UserOTP struct {
 	imachinery.ObjectMeta
 
-	Secret string `json:"secret" gorm:"not null"`
+	Secret string `json:"secret"  gorm:"not null"`
 	UserID string `json:"user_id"`
 }
 

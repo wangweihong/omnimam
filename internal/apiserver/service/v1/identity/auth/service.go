@@ -31,5 +31,5 @@ type SSOProvider interface {
 }
 
 type authService struct {
-		store store.Factory
+	store store.Factory
 }

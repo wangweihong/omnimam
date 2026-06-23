@@ -8,18 +8,19 @@ import (
 
 	"github.com/crewjam/saml"
 	"github.com/gin-gonic/gin"
-	"github.com/wangweihong/omnimam/internal/pkg/code"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"github.com/wangweihong/gotoolbox/pkg/flate"
+
+	"github.com/wangweihong/omnimam/internal/pkg/code"
 )
 
 type IdpServeSSOAnswerRequest struct {
 	SAMLRequest        string        `json:"SAMLRequest" form:"SAMLRequest" binding:"required"`
-	RelayState         string        `json:"RelayState" form:"RelayState" binding:"required"`
-	RemoteAddr         string        `json:"-" form:"-"`
-	DecodedSAMLRequest []byte        `json:"-" form:"-"`
-	Session            *saml.Session `json:"-" form:"-"`
-	Req                *http.Request `json:"-" form:"-"`
+	RelayState         string        `json:"RelayState"  form:"RelayState"  binding:"required"`
+	RemoteAddr         string        `json:"-"           form:"-"`
+	DecodedSAMLRequest []byte        `json:"-"           form:"-"`
+	Session            *saml.Session `json:"-"           form:"-"`
+	Req                *http.Request `json:"-"           form:"-"`
 }
 
 /*
@@ -63,22 +64,22 @@ func (r *IdpServeSSOAnswerRequest) Decode(c *gin.Context) error {
 
 type (
 	IdpServeOauth2SSOAuthorizeRequest struct {
-		ClientID            string `json:"client_id" form:"client_id" binding:"required"`
-		ResponseType        string `json:"response_type" form:"response_type" binding:"required"`
-		RedirectURI         string `json:"redirect_uri" form:"redirect_uri" binding:"required"`
-		Scope               string `json:"scope" form:"scope" binding:"required"`
-		State               string `json:"state" form:"state" binding:"required"`
-		CodeChallenge       string `json:"code_challenge" form:"code_challenge"`
+		ClientID            string `json:"client_id"             form:"client_id"             binding:"required"`
+		ResponseType        string `json:"response_type"         form:"response_type"         binding:"required"`
+		RedirectURI         string `json:"redirect_uri"          form:"redirect_uri"          binding:"required"`
+		Scope               string `json:"scope"                 form:"scope"                 binding:"required"`
+		State               string `json:"state"                 form:"state"                 binding:"required"`
+		CodeChallenge       string `json:"code_challenge"        form:"code_challenge"`
 		CodeChallengeMethod string `json:"code_challenge_method" form:"code_challenge_method"`
 	}
 )
 
 type (
 	IdpServeOauth2SSOTokenRequest struct {
-		ClientID     string `json:"client_id" form:"client_id" binding:"required"`
+		ClientID     string `json:"client_id"     form:"client_id"     binding:"required"`
 		ClientSecret string `json:"client_secret" form:"client_secret" binding:"required"`
-		GrantType    string `json:"grant_type" form:"grant_type"`
-		RedirectURI  string `json:"redirect_uri" form:"redirect_uri" binding:"required"`
+		GrantType    string `json:"grant_type"    form:"grant_type"`
+		RedirectURI  string `json:"redirect_uri"  form:"redirect_uri"  binding:"required"`
 		CodeVerifier string `json:"code_verifier" form:"code_verifier"` //PKCE
 	}
 )
@@ -88,7 +89,7 @@ type (
 		IdentityProviderName string `json:"identity_provider_name" form:"identity_provider_name" binding:"required"`
 		//	Protocol             string `json:"protocol" binding:"required"`
 		// idp登陆成功后的重定向前端URL
-		RedirectURLEncode string        `json:"redirect_url_encode" form:"redirect_url_encode" binding:"required"`
+		RedirectURLEncode string        `json:"redirect_url_encode"    form:"redirect_url_encode"    binding:"required"`
 		RedirectURL       string        `json:"-"`
 		Request           *http.Request `json:"-"`
 	}
@@ -120,7 +121,7 @@ type (
 type (
 	SpSsoOauth2CallbackRequest struct {
 		// idp授权码
-		Code  string `json:"code" form:"code" binding:"required"`
+		Code  string `json:"code"  form:"code"  binding:"required"`
 		State string `json:"state" form:"state" binding:"required"`
 	}
 )

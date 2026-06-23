@@ -4,30 +4,55 @@ import (
 	"context"
 
 	"github.com/wangweihong/gotoolbox/pkg/errors"
+
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/omnimam/apis/imachinery"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
 )
 
 type AssetSrv interface {
-	AssetLibraryList(ctx context.Context, req *iapiserver.AssetLibraryListRequest) (*iapiserver.AssetLibraryListResponse, error)
-	AssetLibraryCreate(ctx context.Context, req *iapiserver.AssetLibraryCreateRequest) (*iapiserver.AssetLibraryCreateResponse, error)
+	AssetLibraryList(
+		ctx context.Context,
+		req *iapiserver.AssetLibraryListRequest,
+	) (*iapiserver.AssetLibraryListResponse, error)
+	AssetLibraryCreate(
+		ctx context.Context,
+		req *iapiserver.AssetLibraryCreateRequest,
+	) (*iapiserver.AssetLibraryCreateResponse, error)
 	AssetLibraryUpdate(ctx context.Context, req *iapiserver.AssetLibraryUpdateRequest) (*iapiserver.AssetLibrary, error)
 	AssetLibraryDelete(ctx context.Context, req *iapiserver.AssetLibraryDeleteRequest) error
 
-	AssetCategoryList(ctx context.Context, req *iapiserver.AssetCategoryListRequest) (*iapiserver.AssetCategoryListResponse, error)
-	AssetCategoryCreate(ctx context.Context, req *iapiserver.AssetCategoryCreateRequest) (*iapiserver.AssetCategoryCreateResponse, error)
-	AssetCategoryUpdate(ctx context.Context, req *iapiserver.AssetCategoryUpdateRequest) (*iapiserver.AssetCategory, error)
+	AssetCategoryList(
+		ctx context.Context,
+		req *iapiserver.AssetCategoryListRequest,
+	) (*iapiserver.AssetCategoryListResponse, error)
+	AssetCategoryCreate(
+		ctx context.Context,
+		req *iapiserver.AssetCategoryCreateRequest,
+	) (*iapiserver.AssetCategoryCreateResponse, error)
+	AssetCategoryUpdate(
+		ctx context.Context,
+		req *iapiserver.AssetCategoryUpdateRequest,
+	) (*iapiserver.AssetCategory, error)
 	AssetCategoryDelete(ctx context.Context, req *iapiserver.AssetCategoryDeleteRequest) error
 
 	AssetItemList(ctx context.Context, req *iapiserver.AssetItemListRequest) (*iapiserver.AssetItemListResponse, error)
-	AssetItemCreate(ctx context.Context, req *iapiserver.AssetItemCreateRequest) (*iapiserver.AssetItemCreateResponse, error)
-	AssetItemBatchCreate(ctx context.Context, req *iapiserver.AssetItemBatchCreateRequest) (*iapiserver.AssetItemBatchCreateResponse, error)
+	AssetItemCreate(
+		ctx context.Context,
+		req *iapiserver.AssetItemCreateRequest,
+	) (*iapiserver.AssetItemCreateResponse, error)
+	AssetItemBatchCreate(
+		ctx context.Context,
+		req *iapiserver.AssetItemBatchCreateRequest,
+	) (*iapiserver.AssetItemBatchCreateResponse, error)
 	AssetItemUpdate(ctx context.Context, req *iapiserver.AssetItemUpdateRequest) (*iapiserver.AssetItem, error)
 	AssetItemDelete(ctx context.Context, req *iapiserver.AssetItemDeleteRequest) error
 	AssetItemBatchDelete(ctx context.Context, req *iapiserver.AssetItemBatchDeleteRequest) (int, error)
 	AssetItemBatchMove(ctx context.Context, req *iapiserver.AssetItemBatchMoveRequest) (int, error)
-	AssetItemClassify(ctx context.Context, req *iapiserver.AssetItemClassifyRequest) (*iapiserver.AssetItemClassifyResponse, error)
+	AssetItemClassify(
+		ctx context.Context,
+		req *iapiserver.AssetItemClassifyRequest,
+	) (*iapiserver.AssetItemClassifyResponse, error)
 }
 
 type assetService struct {
@@ -38,7 +63,10 @@ func NewService(str store.Factory) *assetService {
 	return &assetService{store: str}
 }
 
-func (s *assetService) AssetLibraryList(ctx context.Context, req *iapiserver.AssetLibraryListRequest) (*iapiserver.AssetLibraryListResponse, error) {
+func (s *assetService) AssetLibraryList(
+	ctx context.Context,
+	req *iapiserver.AssetLibraryListRequest,
+) (*iapiserver.AssetLibraryListResponse, error) {
 	metas, total, err := s.store.AssetLibraries().List(ctx, req)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -49,7 +77,10 @@ func (s *assetService) AssetLibraryList(ctx context.Context, req *iapiserver.Ass
 	}, nil
 }
 
-func (s *assetService) AssetLibraryCreate(ctx context.Context, req *iapiserver.AssetLibraryCreateRequest) (*iapiserver.AssetLibraryCreateResponse, error) {
+func (s *assetService) AssetLibraryCreate(
+	ctx context.Context,
+	req *iapiserver.AssetLibraryCreateRequest,
+) (*iapiserver.AssetLibraryCreateResponse, error) {
 	lib := &iapiserver.AssetLibrary{}
 	lib.Name = req.Name
 
@@ -77,7 +108,10 @@ func (s *assetService) AssetLibraryCreate(ctx context.Context, req *iapiserver.A
 	return &iapiserver.AssetLibraryCreateResponse{AssetLibrary: *created}, nil
 }
 
-func (s *assetService) AssetLibraryUpdate(ctx context.Context, req *iapiserver.AssetLibraryUpdateRequest) (*iapiserver.AssetLibrary, error) {
+func (s *assetService) AssetLibraryUpdate(
+	ctx context.Context,
+	req *iapiserver.AssetLibraryUpdateRequest,
+) (*iapiserver.AssetLibrary, error) {
 	lib := &iapiserver.AssetLibrary{}
 	lib.ID = req.ID
 	lib.Name = req.Name
@@ -104,7 +138,10 @@ func (s *assetService) AssetLibraryDelete(ctx context.Context, req *iapiserver.A
 	return nil
 }
 
-func (s *assetService) AssetCategoryList(ctx context.Context, req *iapiserver.AssetCategoryListRequest) (*iapiserver.AssetCategoryListResponse, error) {
+func (s *assetService) AssetCategoryList(
+	ctx context.Context,
+	req *iapiserver.AssetCategoryListRequest,
+) (*iapiserver.AssetCategoryListResponse, error) {
 	metas, total, err := s.store.AssetCategories().List(ctx, req)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -115,7 +152,10 @@ func (s *assetService) AssetCategoryList(ctx context.Context, req *iapiserver.As
 	}, nil
 }
 
-func (s *assetService) AssetCategoryCreate(ctx context.Context, req *iapiserver.AssetCategoryCreateRequest) (*iapiserver.AssetCategoryCreateResponse, error) {
+func (s *assetService) AssetCategoryCreate(
+	ctx context.Context,
+	req *iapiserver.AssetCategoryCreateRequest,
+) (*iapiserver.AssetCategoryCreateResponse, error) {
 	cat := &iapiserver.AssetCategory{}
 	cat.Name = req.Name
 	cat.LibraryID = req.LibraryID
@@ -131,7 +171,10 @@ func (s *assetService) AssetCategoryCreate(ctx context.Context, req *iapiserver.
 	return &iapiserver.AssetCategoryCreateResponse{Category: *created}, nil
 }
 
-func (s *assetService) AssetCategoryUpdate(ctx context.Context, req *iapiserver.AssetCategoryUpdateRequest) (*iapiserver.AssetCategory, error) {
+func (s *assetService) AssetCategoryUpdate(
+	ctx context.Context,
+	req *iapiserver.AssetCategoryUpdateRequest,
+) (*iapiserver.AssetCategory, error) {
 	cat := &iapiserver.AssetCategory{}
 	cat.ID = req.ID
 	cat.Name = req.Name
@@ -150,7 +193,10 @@ func (s *assetService) AssetCategoryDelete(ctx context.Context, req *iapiserver.
 	return nil
 }
 
-func (s *assetService) AssetItemList(ctx context.Context, req *iapiserver.AssetItemListRequest) (*iapiserver.AssetItemListResponse, error) {
+func (s *assetService) AssetItemList(
+	ctx context.Context,
+	req *iapiserver.AssetItemListRequest,
+) (*iapiserver.AssetItemListResponse, error) {
 	metas, total, err := s.store.AssetItems().List(ctx, req)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -161,7 +207,10 @@ func (s *assetService) AssetItemList(ctx context.Context, req *iapiserver.AssetI
 	}, nil
 }
 
-func (s *assetService) AssetItemCreate(ctx context.Context, req *iapiserver.AssetItemCreateRequest) (*iapiserver.AssetItemCreateResponse, error) {
+func (s *assetService) AssetItemCreate(
+	ctx context.Context,
+	req *iapiserver.AssetItemCreateRequest,
+) (*iapiserver.AssetItemCreateResponse, error) {
 	cat, err := s.store.AssetCategories().Get(ctx, req.CategoryID)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -184,7 +233,10 @@ func (s *assetService) AssetItemCreate(ctx context.Context, req *iapiserver.Asse
 	return &iapiserver.AssetItemCreateResponse{Item: *created}, nil
 }
 
-func (s *assetService) AssetItemBatchCreate(ctx context.Context, req *iapiserver.AssetItemBatchCreateRequest) (*iapiserver.AssetItemBatchCreateResponse, error) {
+func (s *assetService) AssetItemBatchCreate(
+	ctx context.Context,
+	req *iapiserver.AssetItemBatchCreateRequest,
+) (*iapiserver.AssetItemBatchCreateResponse, error) {
 	cat, err := s.store.AssetCategories().Get(ctx, req.CategoryID)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -211,7 +263,10 @@ func (s *assetService) AssetItemBatchCreate(ctx context.Context, req *iapiserver
 	return &iapiserver.AssetItemBatchCreateResponse{Items: created}, nil
 }
 
-func (s *assetService) AssetItemUpdate(ctx context.Context, req *iapiserver.AssetItemUpdateRequest) (*iapiserver.AssetItem, error) {
+func (s *assetService) AssetItemUpdate(
+	ctx context.Context,
+	req *iapiserver.AssetItemUpdateRequest,
+) (*iapiserver.AssetItem, error) {
 	item := &iapiserver.AssetItem{}
 	item.ID = req.ID
 	item.Name = req.Name
@@ -230,7 +285,10 @@ func (s *assetService) AssetItemDelete(ctx context.Context, req *iapiserver.Asse
 	return nil
 }
 
-func (s *assetService) AssetItemBatchDelete(ctx context.Context, req *iapiserver.AssetItemBatchDeleteRequest) (int, error) {
+func (s *assetService) AssetItemBatchDelete(
+	ctx context.Context,
+	req *iapiserver.AssetItemBatchDeleteRequest,
+) (int, error) {
 	removed, err := s.store.AssetItems().BatchDelete(ctx, req.IDs, req.LibraryID)
 	if err != nil {
 		return 0, errors.WithStack(err)
@@ -251,7 +309,10 @@ func (s *assetService) AssetItemBatchMove(ctx context.Context, req *iapiserver.A
 	return moved, nil
 }
 
-func (s *assetService) AssetItemClassify(ctx context.Context, req *iapiserver.AssetItemClassifyRequest) (*iapiserver.AssetItemClassifyResponse, error) {
+func (s *assetService) AssetItemClassify(
+	ctx context.Context,
+	req *iapiserver.AssetItemClassifyRequest,
+) (*iapiserver.AssetItemClassifyResponse, error) {
 	items, err := s.store.AssetItems().FindByIDs(ctx, req.IDs, req.LibraryID)
 	if err != nil {
 		return nil, errors.WithStack(err)

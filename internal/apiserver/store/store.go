@@ -8,7 +8,10 @@ import (
 )
 
 type IdentityProviderStore interface {
-	List(ctx context.Context, req *iapiserver.IdentityProviderListRequest) ([]*iapiserver.IdentityProvider, int64, error)
+	List(
+		ctx context.Context,
+		req *iapiserver.IdentityProviderListRequest,
+	) ([]*iapiserver.IdentityProvider, int64, error)
 	Get(ctx context.Context, id string) (*iapiserver.IdentityProvider, error)
 	GetByName(ctx context.Context, name string) (*iapiserver.IdentityProvider, error)
 	Delete(ctx context.Context, id string) error

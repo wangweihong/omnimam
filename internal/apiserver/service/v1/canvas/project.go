@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/wangweihong/gotoolbox/pkg/errors"
+
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
 )
@@ -76,7 +77,10 @@ func (s *canvasService) ProjectList(ctx context.Context) (*iapiserver.ProjectLis
 	return &iapiserver.ProjectListResponse{Projects: records}, nil
 }
 
-func (s *canvasService) ProjectCreate(ctx context.Context, req *iapiserver.ProjectCreateRequest) (*iapiserver.ProjectCreateResponse, error) {
+func (s *canvasService) ProjectCreate(
+	ctx context.Context,
+	req *iapiserver.ProjectCreateRequest,
+) (*iapiserver.ProjectCreateResponse, error) {
 	if err := s.ensureDefaultProject(ctx); err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -105,7 +109,10 @@ func (s *canvasService) ProjectCreate(ctx context.Context, req *iapiserver.Proje
 	}, nil
 }
 
-func (s *canvasService) ProjectUpdate(ctx context.Context, req *iapiserver.ProjectUpdateRequest) (*iapiserver.ProjectRecord, error) {
+func (s *canvasService) ProjectUpdate(
+	ctx context.Context,
+	req *iapiserver.ProjectUpdateRequest,
+) (*iapiserver.ProjectRecord, error) {
 	p := &iapiserver.Project{}
 	p.ID = req.ID
 	if req.Name != nil {
@@ -171,7 +178,10 @@ func (s *canvasService) CanvasTrashList(ctx context.Context) (*iapiserver.Canvas
 	return &iapiserver.CanvasTrashResponse{Canvases: records, RetentionDays: 30}, nil
 }
 
-func (s *canvasService) CanvasCreate(ctx context.Context, req *iapiserver.CanvasCreateRequest) (*iapiserver.CanvasCreateResponse, error) {
+func (s *canvasService) CanvasCreate(
+	ctx context.Context,
+	req *iapiserver.CanvasCreateRequest,
+) (*iapiserver.CanvasCreateResponse, error) {
 	if err := s.ensureDefaultProject(ctx); err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -248,7 +258,10 @@ func (s *canvasService) CanvasGetMeta(ctx context.Context, id string) (*iapiserv
 	}, nil
 }
 
-func (s *canvasService) CanvasUpdateMeta(ctx context.Context, req *iapiserver.CanvasMetaUpdateRequest) (*iapiserver.CanvasRecord, error) {
+func (s *canvasService) CanvasUpdateMeta(
+	ctx context.Context,
+	req *iapiserver.CanvasMetaUpdateRequest,
+) (*iapiserver.CanvasRecord, error) {
 	c, err := s.store.Canvases().Get(ctx, req.ID)
 	if err != nil {
 		return nil, errors.WithStack(err)

@@ -4,8 +4,9 @@ import (
 	"context"
 
 	"github.com/wangweihong/gotoolbox/pkg/errors"
-	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"gorm.io/gorm"
+
+	"github.com/wangweihong/omnimam/apis/iapiserver"
 )
 
 type promptLibrary struct {

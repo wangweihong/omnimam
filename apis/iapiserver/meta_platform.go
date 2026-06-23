@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/wangweihong/omnimam/apis/imachinery"
 	"gorm.io/gorm"
+
+	"github.com/wangweihong/omnimam/apis/imachinery"
 )
 
 const (
@@ -72,10 +73,10 @@ const (
 
 type Provider struct {
 	imachinery.ObjectMeta
-	Type          string `json:"type" gorm:"column:type;type:varchar(64);not null;index"`
-	Enabled       bool   `json:"enabled" gorm:"column:enabled;type:boolean;not null;default:true"`
-	BaseURL       string `json:"base_url" gorm:"column:base_url;type:varchar(512)"`
-	AuthType      string `json:"auth_type" gorm:"column:auth_type;type:varchar(64)"`
+	Type          string `json:"type"                     gorm:"column:type;type:varchar(64);not null;index"`
+	Enabled       bool   `json:"enabled"                  gorm:"column:enabled;type:boolean;not null;default:true"`
+	BaseURL       string `json:"base_url"                 gorm:"column:base_url;type:varchar(512)"`
+	AuthType      string `json:"auth_type"                gorm:"column:auth_type;type:varchar(64)"`
 	CredentialRef string `json:"credential_ref,omitempty" gorm:"column:credential_ref;type:varchar(512)"`
 }
 
@@ -83,13 +84,13 @@ func (Provider) TableName() string { return "providers" }
 
 type ProviderModel struct {
 	imachinery.ObjectMeta
-	ProviderID          string         `json:"provider_id" gorm:"column:provider_id;type:varchar(64);not null;index"`
-	Model               string         `json:"model" gorm:"column:model;type:varchar(128);not null;index"`
-	Capabilities        []string       `json:"capabilities" gorm:"-"`
-	CapabilitiesShadow  string         `json:"-" gorm:"column:capabilities;type:text"`
-	Enabled             bool           `json:"enabled" gorm:"column:enabled;type:boolean;not null;default:true"`
+	ProviderID          string         `json:"provider_id"              gorm:"column:provider_id;type:varchar(64);not null;index"`
+	Model               string         `json:"model"                    gorm:"column:model;type:varchar(128);not null;index"`
+	Capabilities        []string       `json:"capabilities"             gorm:"-"`
+	CapabilitiesShadow  string         `json:"-"                        gorm:"column:capabilities;type:text"`
+	Enabled             bool           `json:"enabled"                  gorm:"column:enabled;type:boolean;not null;default:true"`
 	DefaultParams       map[string]any `json:"default_params,omitempty" gorm:"-"`
-	DefaultParamsShadow string         `json:"-" gorm:"column:default_params;type:text"`
+	DefaultParamsShadow string         `json:"-"                        gorm:"column:default_params;type:text"`
 }
 
 func (ProviderModel) TableName() string { return "provider_models" }
@@ -139,24 +140,24 @@ func (ProviderCapability) TableName() string { return "provider_capabilities" }
 
 type SystemLLMConfig struct {
 	imachinery.ObjectMeta
-	Purpose    string `json:"purpose" gorm:"column:purpose;type:varchar(64);not null;uniqueIndex"`
+	Purpose    string `json:"purpose"     gorm:"column:purpose;type:varchar(64);not null;uniqueIndex"`
 	ProviderID string `json:"provider_id" gorm:"column:provider_id;type:varchar(64);not null;index"`
-	ModelID    string `json:"model_id" gorm:"column:model_id;type:varchar(64);index"`
-	Model      string `json:"model" gorm:"column:model;type:varchar(128)"`
-	Enabled    bool   `json:"enabled" gorm:"column:enabled;type:boolean;not null;default:true"`
+	ModelID    string `json:"model_id"    gorm:"column:model_id;type:varchar(64);index"`
+	Model      string `json:"model"       gorm:"column:model;type:varchar(128)"`
+	Enabled    bool   `json:"enabled"     gorm:"column:enabled;type:boolean;not null;default:true"`
 }
 
 func (SystemLLMConfig) TableName() string { return "system_llm_configs" }
 
 type StorageBackend struct {
 	imachinery.ObjectMeta
-	Type         string         `json:"type" gorm:"column:type;type:varchar(64);not null;index"`
-	Root         string         `json:"root" gorm:"column:root;type:varchar(1024)"`
+	Type         string         `json:"type"             gorm:"column:type;type:varchar(64);not null;index"`
+	Root         string         `json:"root"             gorm:"column:root;type:varchar(1024)"`
 	Config       map[string]any `json:"config,omitempty" gorm:"-"`
-	ConfigShadow string         `json:"-" gorm:"column:config;type:text"`
-	Enabled      bool           `json:"enabled" gorm:"column:enabled;type:boolean;not null;default:true"`
-	Readonly     bool           `json:"readonly" gorm:"column:readonly;type:boolean;not null;default:false"`
-	Quota        int64          `json:"quota" gorm:"column:quota"`
+	ConfigShadow string         `json:"-"                gorm:"column:config;type:text"`
+	Enabled      bool           `json:"enabled"          gorm:"column:enabled;type:boolean;not null;default:true"`
+	Readonly     bool           `json:"readonly"         gorm:"column:readonly;type:boolean;not null;default:false"`
+	Quota        int64          `json:"quota"            gorm:"column:quota"`
 }
 
 func (StorageBackend) TableName() string { return "storage_backends" }
@@ -194,20 +195,20 @@ func (b *StorageBackend) marshalShadows() error {
 
 type Asset struct {
 	imachinery.ObjectMeta
-	MediaType        string         `json:"media_type" gorm:"column:media_type;type:varchar(64);not null;index"`
-	MimeType         string         `json:"mime_type" gorm:"column:mime_type;type:varchar(128);index"`
+	MediaType        string         `json:"media_type"         gorm:"column:media_type;type:varchar(64);not null;index"`
+	MimeType         string         `json:"mime_type"          gorm:"column:mime_type;type:varchar(128);index"`
 	StorageBackendID string         `json:"storage_backend_id" gorm:"column:storage_backend_id;type:varchar(64);not null;index"`
-	ObjectKey        string         `json:"object_key" gorm:"column:object_key;type:varchar(1024);not null"`
-	Size             int64          `json:"size" gorm:"column:size;index"`
-	Checksum         string         `json:"checksum" gorm:"column:checksum;type:varchar(128);index"`
-	Width            int            `json:"width" gorm:"column:width;index"`
-	Height           int            `json:"height" gorm:"column:height;index"`
-	Duration         int64          `json:"duration" gorm:"column:duration;index"`
-	Format           string         `json:"format" gorm:"column:format;type:varchar(32);index"`
-	SourceType       string         `json:"source_type" gorm:"column:source_type;type:varchar(64);index"`
-	SourceRef        string         `json:"source_ref" gorm:"column:source_ref;type:varchar(256);index"`
+	ObjectKey        string         `json:"object_key"         gorm:"column:object_key;type:varchar(1024);not null"`
+	Size             int64          `json:"size"               gorm:"column:size;index"`
+	Checksum         string         `json:"checksum"           gorm:"column:checksum;type:varchar(128);index"`
+	Width            int            `json:"width"              gorm:"column:width;index"`
+	Height           int            `json:"height"             gorm:"column:height;index"`
+	Duration         int64          `json:"duration"           gorm:"column:duration;index"`
+	Format           string         `json:"format"             gorm:"column:format;type:varchar(32);index"`
+	SourceType       string         `json:"source_type"        gorm:"column:source_type;type:varchar(64);index"`
+	SourceRef        string         `json:"source_ref"         gorm:"column:source_ref;type:varchar(256);index"`
 	Metadata         map[string]any `json:"metadata,omitempty" gorm:"-"`
-	MetadataShadow   string         `json:"-" gorm:"column:metadata;type:text"`
+	MetadataShadow   string         `json:"-"                  gorm:"column:metadata;type:text"`
 }
 
 func (Asset) TableName() string { return "assets" }
@@ -245,14 +246,14 @@ func (a *Asset) marshalShadows() error {
 
 type AssetThumbnail struct {
 	imachinery.ObjectMeta
-	AssetID          string `json:"asset_id" gorm:"column:asset_id;type:varchar(64);not null;index"`
+	AssetID          string `json:"asset_id"           gorm:"column:asset_id;type:varchar(64);not null;index"`
 	StorageBackendID string `json:"storage_backend_id" gorm:"column:storage_backend_id;type:varchar(64);not null;index"`
-	ObjectKey        string `json:"object_key" gorm:"column:object_key;type:varchar(1024)"`
-	Width            int    `json:"width" gorm:"column:width"`
-	Height           int    `json:"height" gorm:"column:height"`
-	MimeType         string `json:"mime_type" gorm:"column:mime_type;type:varchar(128)"`
-	Size             int64  `json:"size" gorm:"column:size"`
-	Status           string `json:"status" gorm:"column:status;type:varchar(32);not null;default:pending;index"`
+	ObjectKey        string `json:"object_key"         gorm:"column:object_key;type:varchar(1024)"`
+	Width            int    `json:"width"              gorm:"column:width"`
+	Height           int    `json:"height"             gorm:"column:height"`
+	MimeType         string `json:"mime_type"          gorm:"column:mime_type;type:varchar(128)"`
+	Size             int64  `json:"size"               gorm:"column:size"`
+	Status           string `json:"status"             gorm:"column:status;type:varchar(32);not null;default:pending;index"`
 }
 
 func (AssetThumbnail) TableName() string { return "asset_thumbnails" }
@@ -267,17 +268,17 @@ func (Tag) TableName() string { return "tags" }
 type AssetTag struct {
 	imachinery.ObjectMeta
 	AssetID string `json:"asset_id" gorm:"column:asset_id;type:varchar(64);not null;index"`
-	TagID   string `json:"tag_id" gorm:"column:tag_id;type:varchar(64);not null;index"`
-	Source  string `json:"source" gorm:"column:source;type:varchar(32);not null;default:user;index"`
+	TagID   string `json:"tag_id"   gorm:"column:tag_id;type:varchar(64);not null;index"`
+	Source  string `json:"source"   gorm:"column:source;type:varchar(32);not null;default:user;index"`
 }
 
 func (AssetTag) TableName() string { return "asset_tags" }
 
 type AssetGroup struct {
 	imachinery.ObjectMeta
-	Type              string         `json:"type" gorm:"column:type;type:varchar(64);not null;default:collection;index"`
+	Type              string         `json:"type"                   gorm:"column:type;type:varchar(64);not null;default:collection;index"`
 	DynamicRule       map[string]any `json:"dynamic_rule,omitempty" gorm:"-"`
-	DynamicRuleShadow string         `json:"-" gorm:"column:dynamic_rule;type:text"`
+	DynamicRuleShadow string         `json:"-"                      gorm:"column:dynamic_rule;type:text"`
 }
 
 func (AssetGroup) TableName() string { return "asset_groups" }
@@ -317,19 +318,19 @@ type AssetGroupMember struct {
 	imachinery.ObjectMeta
 	GroupID string `json:"group_id" gorm:"column:group_id;type:varchar(64);not null;index"`
 	AssetID string `json:"asset_id" gorm:"column:asset_id;type:varchar(64);not null;index"`
-	Role    string `json:"role" gorm:"column:role;type:varchar(64)"`
+	Role    string `json:"role"     gorm:"column:role;type:varchar(64)"`
 }
 
 func (AssetGroupMember) TableName() string { return "asset_group_members" }
 
 type AssetRelation struct {
 	imachinery.ObjectMeta
-	SourceAssetID string         `json:"source_asset_id" gorm:"column:source_asset_id;type:varchar(64);not null;index"`
-	TargetAssetID string         `json:"target_asset_id" gorm:"column:target_asset_id;type:varchar(64);not null;index"`
-	TaskID        string         `json:"task_id" gorm:"column:task_id;type:varchar(64);index"`
-	RelationType  string         `json:"relation_type" gorm:"column:relation_type;type:varchar(64);not null;index"`
+	SourceAssetID string         `json:"source_asset_id"  gorm:"column:source_asset_id;type:varchar(64);not null;index"`
+	TargetAssetID string         `json:"target_asset_id"  gorm:"column:target_asset_id;type:varchar(64);not null;index"`
+	TaskID        string         `json:"task_id"          gorm:"column:task_id;type:varchar(64);index"`
+	RelationType  string         `json:"relation_type"    gorm:"column:relation_type;type:varchar(64);not null;index"`
 	Params        map[string]any `json:"params,omitempty" gorm:"-"`
-	ParamsShadow  string         `json:"-" gorm:"column:params;type:text"`
+	ParamsShadow  string         `json:"-"                gorm:"column:params;type:text"`
 }
 
 func (AssetRelation) TableName() string { return "asset_relations" }
@@ -367,21 +368,21 @@ func (r *AssetRelation) marshalShadows() error {
 
 type Task struct {
 	imachinery.ObjectMeta
-	Type           string         `json:"type" gorm:"column:type;type:varchar(64);not null;index"`
-	Status         string         `json:"status" gorm:"column:status;type:varchar(32);not null;default:pending;index"`
-	Priority       int            `json:"priority" gorm:"column:priority;not null;default:0;index"`
-	Queue          string         `json:"queue" gorm:"column:queue;type:varchar(64);not null;default:default;index"`
-	Input          map[string]any `json:"input,omitempty" gorm:"-"`
-	InputShadow    string         `json:"-" gorm:"column:input;type:text"`
-	Output         map[string]any `json:"output,omitempty" gorm:"-"`
-	OutputShadow   string         `json:"-" gorm:"column:output;type:text"`
-	Progress       int            `json:"progress" gorm:"column:progress;not null;default:0"`
-	Error          string         `json:"error" gorm:"column:error;type:text"`
-	Attempts       int            `json:"attempts" gorm:"column:attempts;not null;default:0"`
-	MaxAttempts    int            `json:"max_attempts" gorm:"column:max_attempts;not null;default:3"`
-	LockOwner      string         `json:"lock_owner" gorm:"column:lock_owner;type:varchar(128);index"`
+	Type           string         `json:"type"                   gorm:"column:type;type:varchar(64);not null;index"`
+	Status         string         `json:"status"                 gorm:"column:status;type:varchar(32);not null;default:pending;index"`
+	Priority       int            `json:"priority"               gorm:"column:priority;not null;default:0;index"`
+	Queue          string         `json:"queue"                  gorm:"column:queue;type:varchar(64);not null;default:default;index"`
+	Input          map[string]any `json:"input,omitempty"        gorm:"-"`
+	InputShadow    string         `json:"-"                      gorm:"column:input;type:text"`
+	Output         map[string]any `json:"output,omitempty"       gorm:"-"`
+	OutputShadow   string         `json:"-"                      gorm:"column:output;type:text"`
+	Progress       int            `json:"progress"               gorm:"column:progress;not null;default:0"`
+	Error          string         `json:"error"                  gorm:"column:error;type:text"`
+	Attempts       int            `json:"attempts"               gorm:"column:attempts;not null;default:0"`
+	MaxAttempts    int            `json:"max_attempts"           gorm:"column:max_attempts;not null;default:3"`
+	LockOwner      string         `json:"lock_owner"             gorm:"column:lock_owner;type:varchar(128);index"`
 	LockedUntil    time.Time      `json:"locked_until,omitempty" gorm:"column:locked_until;index"`
-	IdempotencyKey string         `json:"idempotency_key" gorm:"column:idempotency_key;type:varchar(128);index"`
+	IdempotencyKey string         `json:"idempotency_key"        gorm:"column:idempotency_key;type:varchar(128);index"`
 }
 
 func (Task) TableName() string { return "tasks" }
@@ -425,7 +426,7 @@ func (t *Task) marshalShadows() error {
 
 type FeatureFlag struct {
 	imachinery.ObjectMeta
-	Key     string `json:"key" gorm:"column:key;type:varchar(128);not null;uniqueIndex"`
+	Key     string `json:"key"     gorm:"column:key;type:varchar(128);not null;uniqueIndex"`
 	Enabled bool   `json:"enabled" gorm:"column:enabled;type:boolean;not null;default:true"`
 }
 

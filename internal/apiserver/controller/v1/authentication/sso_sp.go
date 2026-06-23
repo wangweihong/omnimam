@@ -8,9 +8,10 @@ import (
 	"github.com/crewjam/saml"
 	"github.com/gin-gonic/gin"
 
+	"github.com/wangweihong/gotoolbox/pkg/log"
+
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/omnimam/pkg/core"
-	"github.com/wangweihong/gotoolbox/pkg/log"
 )
 
 // SpSsoSamlInitiator  作为sp发起对idp的saml单点登录
@@ -80,7 +81,10 @@ func (rc *AuthController) SpSsoSamlAcs(c *gin.Context) {
 		onError(c, err)
 		return
 	}
-	c.Header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
+	c.Header(
+		"Accept",
+		"text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+	)
 
 	c.Redirect(http.StatusFound, authRedirectURL)
 }
@@ -156,7 +160,8 @@ func (rc *AuthController) SpSsoOauth2Callback(c *gin.Context) {
 	// 	onError(c, err)
 	// 	return
 	// }
-	// c.Header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
+	// c.Header("Accept",
+	// "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
 
 	// c.Redirect(http.StatusFound, authRedirectURL)
 }

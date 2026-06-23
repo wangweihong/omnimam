@@ -12,9 +12,6 @@ import (
 
 	"github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
-	"github.com/wangweihong/omnimam/apis/iapiserver"
-	"github.com/wangweihong/omnimam/internal/apiserver/store"
-	"github.com/wangweihong/omnimam/internal/pkg/ctxvalue"
 	"github.com/wangweihong/gotoolbox/pkg/certificate/x509"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"github.com/wangweihong/gotoolbox/pkg/json"
@@ -22,11 +19,18 @@ import (
 	"github.com/wangweihong/gotoolbox/pkg/randutil"
 	"github.com/wangweihong/gotoolbox/pkg/tokenutil"
 
+	"github.com/wangweihong/omnimam/apis/iapiserver"
+	"github.com/wangweihong/omnimam/internal/apiserver/store"
+	"github.com/wangweihong/omnimam/internal/pkg/ctxvalue"
+
 	dsig "github.com/russellhaering/goxmldsig"
 )
 
 // SP发起SSO请求(SAML或者Oauth2)
-func (s *settingService) ServiceProviderSsoSamlInitiator(ctx context.Context, req *iapiserver.SpSSOInitiatorRequest) (string, string, error) {
+func (s *settingService) ServiceProviderSsoSamlInitiator(
+	ctx context.Context,
+	req *iapiserver.SpSSOInitiatorRequest,
+) (string, string, error) {
 	idp, err := s.store.IdentityProviders().GetByName(ctx, req.IdentityProviderName)
 	if err != nil {
 		return "", "", errors.WithStack(err)
@@ -122,7 +126,10 @@ rdKNuCZhiaE2XD9L/O9KP1fh5bfEcKwazQ23EvpJHBMm8BGC+/YZNw==
 	return k
 }()
 
-func (s *settingService) ServiceProviderSsoSamlAcs(ctx context.Context, req *iapiserver.SpSSOInitiatorRequest) (string, error) {
+func (s *settingService) ServiceProviderSsoSamlAcs(
+	ctx context.Context,
+	req *iapiserver.SpSSOInitiatorRequest,
+) (string, error) {
 	idp, err := s.store.IdentityProviders().GetByName(ctx, req.IdentityProviderName)
 	if err != nil {
 		return "", errors.WithStack(err)
@@ -184,7 +191,8 @@ func (s *settingService) ServiceProviderSsoSamlAcs(ctx context.Context, req *iap
 	redirectURL := req.RedirectURL
 	redirectURL += "?sign=" + signedData
 	log.Infof("redirectURL:%v", redirectURL)
-	// r.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
+	// r.Header.Set("Accept",
+	// "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
 	// http.Redirect(w, r, redirectURL, http.StatusFound)
 	return redirectURL, nil
 }
@@ -227,7 +235,10 @@ func (s *settingService) ServiceProviderSsoSamlSlo(ctx context.Context) (string,
 	return req.Redirect("").String(), nil
 }
 
-func NewServiceProvider(spMeta *iapiserver.ServiceProviderMetadataExtender, idp *iapiserver.IdentityProvider) (*saml.ServiceProvider, error) {
+func NewServiceProvider(
+	spMeta *iapiserver.ServiceProviderMetadataExtender,
+	idp *iapiserver.IdentityProvider,
+) (*saml.ServiceProvider, error) {
 	rootURL, err := url.Parse(spMeta.GetEndpoint())
 	if err != nil {
 		return nil, errors.WithStack(err)

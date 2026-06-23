@@ -47,7 +47,7 @@ type (
 
 	AssetCategoryCreateRequest struct {
 		LibraryID string `json:"library_id" binding:"required"`
-		Name      string `json:"name" binding:"required"`
+		Name      string `json:"name"       binding:"required"`
 		Type      string `json:"type"`
 	}
 
@@ -58,7 +58,7 @@ type (
 	AssetCategoryUpdateRequest struct {
 		imachinery.ObjectMeta
 		LibraryID string `json:"library_id"`
-		Name      string `json:"name" binding:"required"`
+		Name      string `json:"name"       binding:"required"`
 	}
 
 	AssetCategoryDeleteRequest struct {
@@ -72,9 +72,9 @@ type (
 type (
 	AssetItemListRequest struct {
 		imachinery.BasicQueryParam
-		LibraryID  string `json:"library_id" form:"library_id"`
+		LibraryID  string `json:"library_id"  form:"library_id"`
 		CategoryID string `json:"category_id" form:"category_id"`
-		Kind       string `json:"kind" form:"kind"`
+		Kind       string `json:"kind"        form:"kind"`
 	}
 
 	AssetItemListResponse struct {
@@ -83,9 +83,9 @@ type (
 	}
 
 	AssetItemCreateRequest struct {
-		LibraryID  string `json:"library_id" binding:"required"`
+		LibraryID  string `json:"library_id"  binding:"required"`
 		CategoryID string `json:"category_id" binding:"required"`
-		URL        string `json:"url" binding:"required"`
+		URL        string `json:"url"         binding:"required"`
 		Name       string `json:"name"`
 	}
 
@@ -94,9 +94,9 @@ type (
 	}
 
 	AssetItemBatchCreateRequest struct {
-		LibraryID  string                   `json:"library_id" binding:"required"`
+		LibraryID  string                   `json:"library_id"  binding:"required"`
 		CategoryID string                   `json:"category_id" binding:"required"`
-		Items      []AssetItemCreateRequest `json:"items" binding:"required"`
+		Items      []AssetItemCreateRequest `json:"items"       binding:"required"`
 	}
 
 	AssetItemBatchCreateResponse struct {
@@ -106,7 +106,7 @@ type (
 	AssetItemUpdateRequest struct {
 		imachinery.ObjectMeta
 		LibraryID string `json:"library_id"`
-		Name      string `json:"name" binding:"required"`
+		Name      string `json:"name"       binding:"required"`
 	}
 
 	AssetItemDeleteRequest struct {
@@ -115,12 +115,12 @@ type (
 	}
 
 	AssetItemBatchDeleteRequest struct {
-		IDs       []string `json:"ids" binding:"required"`
+		IDs       []string `json:"ids"        binding:"required"`
 		LibraryID string   `json:"library_id"`
 	}
 
 	AssetItemBatchMoveRequest struct {
-		IDs              []string `json:"ids" binding:"required"`
+		IDs              []string `json:"ids"                binding:"required"`
 		LibraryID        string   `json:"library_id"`
 		TargetLibraryID  string   `json:"target_library_id"`
 		TargetCategoryID string   `json:"target_category_id" binding:"required"`
@@ -128,7 +128,7 @@ type (
 
 	AssetItemClassifyRequest struct {
 		LibraryID string   `json:"library_id"`
-		IDs       []string `json:"ids" binding:"required"`
+		IDs       []string `json:"ids"        binding:"required"`
 		Provider  string   `json:"provider"`
 		Model     string   `json:"model"`
 		Prompt    string   `json:"prompt"`
@@ -178,10 +178,10 @@ type (
 	}
 
 	PromptItemCreateRequest struct {
-		LibraryID  string `json:"library_id" binding:"required"`
+		LibraryID  string `json:"library_id"  binding:"required"`
 		Name       string `json:"name"`
 		CategoryID string `json:"category_id"`
-		Positive   string `json:"positive" binding:"required"`
+		Positive   string `json:"positive"    binding:"required"`
 		Negative   string `json:"negative"`
 		Scene      string `json:"scene"`
 	}
@@ -195,7 +195,7 @@ type (
 		LibraryID  string `json:"library_id"`
 		Name       string `json:"name"`
 		CategoryID string `json:"category_id"`
-		Positive   string `json:"positive" binding:"required"`
+		Positive   string `json:"positive"    binding:"required"`
 		Negative   string `json:"negative"`
 		Scene      string `json:"scene"`
 	}
@@ -210,7 +210,7 @@ type (
 
 	PromptCategoryCreateRequest struct {
 		LibraryID string `json:"library_id" binding:"required"`
-		Name      string `json:"name" binding:"required"`
+		Name      string `json:"name"       binding:"required"`
 	}
 
 	PromptCategoryUpdateRequest struct {

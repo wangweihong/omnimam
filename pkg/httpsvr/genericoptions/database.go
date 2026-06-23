@@ -8,8 +8,8 @@ import (
 
 type DatabaseOptions struct {
 	Type        string             `json:"type,omitempty" mapstructure:"type"`
-	PostgresSQL PostgresSQLOptions `json:"postgresql" mapstructure:"postgresql"`
-	MySQL       MySQLOptions       `json:"mysql" mapstructure:"mysql"`
+	PostgresSQL PostgresSQLOptions `json:"postgresql"     mapstructure:"postgresql"`
+	MySQL       MySQLOptions       `json:"mysql"          mapstructure:"mysql"`
 }
 
 // NewDatabaseOptions create a `zero` value instance.
@@ -65,8 +65,13 @@ func (o *DatabaseOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&o.MySQL.MaxOpenConnections, "database.mysql.max-open-connections", o.MySQL.MaxOpenConnections, ""+
 		"Maximum open connections allowed to connect to mysql.")
 
-	fs.DurationVar(&o.MySQL.MaxConnectionLifeTime, "database.mysql.max-connection-life-time", o.MySQL.MaxConnectionLifeTime, ""+
-		"Maximum connection life time allowed to connect to mysql.")
+	fs.DurationVar(
+		&o.MySQL.MaxConnectionLifeTime,
+		"database.mysql.max-connection-life-time",
+		o.MySQL.MaxConnectionLifeTime,
+		""+
+			"Maximum connection life time allowed to connect to mysql.",
+	)
 
 	fs.IntVar(&o.MySQL.LogLevel, "database.mysql.log-mode", o.MySQL.LogLevel, ""+
 		"Specify gorm log level.")
@@ -86,14 +91,29 @@ func (o *DatabaseOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.PostgresSQL.Database, "database.postgresql.database", o.PostgresSQL.Database, ""+
 		"Database name for the server to use.")
 
-	fs.IntVar(&o.PostgresSQL.MaxIdleConnections, "database.postgresql.max-idle-connections", o.PostgresSQL.MaxOpenConnections, ""+
-		"Maximum idle connections allowed to connect to postgresql.")
+	fs.IntVar(
+		&o.PostgresSQL.MaxIdleConnections,
+		"database.postgresql.max-idle-connections",
+		o.PostgresSQL.MaxOpenConnections,
+		""+
+			"Maximum idle connections allowed to connect to postgresql.",
+	)
 
-	fs.IntVar(&o.PostgresSQL.MaxOpenConnections, "database.postgresql.max-open-connections", o.PostgresSQL.MaxOpenConnections, ""+
-		"Maximum open connections allowed to connect to postgresql.")
+	fs.IntVar(
+		&o.PostgresSQL.MaxOpenConnections,
+		"database.postgresql.max-open-connections",
+		o.PostgresSQL.MaxOpenConnections,
+		""+
+			"Maximum open connections allowed to connect to postgresql.",
+	)
 
-	fs.DurationVar(&o.PostgresSQL.MaxConnectionLifeTime, "database.postgresql.max-connection-life-time", o.PostgresSQL.MaxConnectionLifeTime, ""+
-		"Maximum connection life time allowed to connect to postgresql.")
+	fs.DurationVar(
+		&o.PostgresSQL.MaxConnectionLifeTime,
+		"database.postgresql.max-connection-life-time",
+		o.PostgresSQL.MaxConnectionLifeTime,
+		""+
+			"Maximum connection life time allowed to connect to postgresql.",
+	)
 
 	fs.IntVar(&o.PostgresSQL.LogLevel, "database.postgresql.log-mode", o.PostgresSQL.LogLevel, ""+
 		"Specify gorm log level.")

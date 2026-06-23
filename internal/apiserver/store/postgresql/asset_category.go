@@ -3,9 +3,10 @@ package postgresql
 import (
 	"context"
 
-	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"gorm.io/gorm"
+
+	"github.com/wangweihong/omnimam/apis/iapiserver"
 )
 
 type assetCategory struct {
@@ -16,7 +17,10 @@ func newAssetCategory(ds *datastore) *assetCategory {
 	return &assetCategory{ds}
 }
 
-func (s *assetCategory) List(ctx context.Context, param *iapiserver.AssetCategoryListRequest) ([]*iapiserver.AssetCategory, int64, error) {
+func (s *assetCategory) List(
+	ctx context.Context,
+	param *iapiserver.AssetCategoryListRequest,
+) ([]*iapiserver.AssetCategory, int64, error) {
 	var meta []*iapiserver.AssetCategory
 	var total int64
 

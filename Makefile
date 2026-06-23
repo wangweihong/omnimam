@@ -13,6 +13,7 @@ all: tidy gen proto format lint cover build
 
 include scripts/make-rules/common.mk # make sure include common.mk at the first include line
 include scripts/make-rules/golang.mk
+include scripts/make-rules/frontend-image.mk
 include scripts/make-rules/image.mk
 include scripts/make-rules/tools.mk
 include scripts/make-rules/gen.mk
@@ -34,6 +35,9 @@ Options:
   IMAGES           Backend images to make. Default is all dir under build/docker/*.
                    This option is available when using: make image/image.multiarch/push/
                    Example: make image.multiarch IMAGES="apiserver taskworker"
+  FRONTEND_IMAGE   Frontend image name. This option is available when using:
+                   make frontend.image/frontend.image.push
+                   Example: make frontend.image FRONTEND_VERSION=latest
   REGISTRY_PREFIX  Docker registry prefix. Default is "".
                    Example: make push REGISTRY_PREFIX=harbor.registry.wang/exampled VERSION=v1.6.2
   PLATFORMS        The multiple platforms to build. Default is linux/amd64 and linux/arm64.

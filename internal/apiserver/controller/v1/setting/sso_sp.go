@@ -29,17 +29,25 @@ func (rc *SettingController) ServiceProviderAdd(c *gin.Context) {
 }
 
 func (rc *SettingController) ServiceProviderUpdate(c *gin.Context) {
-	core.Run(c, &iapiserver.ServiceProviderUpdateRequest{}, func(r *iapiserver.ServiceProviderUpdateRequest) (any, error) {
-		err := rc.srv.Settings().ServiceProviderUpdate(c, r)
-		return nil, err
-	})
+	core.Run(
+		c,
+		&iapiserver.ServiceProviderUpdateRequest{},
+		func(r *iapiserver.ServiceProviderUpdateRequest) (any, error) {
+			err := rc.srv.Settings().ServiceProviderUpdate(c, r)
+			return nil, err
+		},
+	)
 }
 
 func (rc *SettingController) ServiceProviderDelete(c *gin.Context) {
-	core.Run(c, &iapiserver.ServiceProviderDeleteRequest{}, func(r *iapiserver.ServiceProviderDeleteRequest) (any, error) {
-		err := rc.srv.Settings().ServiceProviderDelete(c, r)
-		return nil, err
-	})
+	core.Run(
+		c,
+		&iapiserver.ServiceProviderDeleteRequest{},
+		func(r *iapiserver.ServiceProviderDeleteRequest) (any, error) {
+			err := rc.srv.Settings().ServiceProviderDelete(c, r)
+			return nil, err
+		},
+	)
 }
 
 func (rc *SettingController) ServiceProviderRedirectURL(c *gin.Context) {

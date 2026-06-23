@@ -7,16 +7,20 @@ import (
 	"time"
 
 	"github.com/wangweihong/gotoolbox/pkg/errors"
-	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/wangweihong/omnimam/apis/iapiserver"
 )
 
 type providerStore struct{ ds *datastore }
 
 func newProvider(ds *datastore) *providerStore { return &providerStore{ds: ds} }
 
-func (s *providerStore) List(ctx context.Context, req *iapiserver.ProviderListRequest) ([]*iapiserver.Provider, int64, error) {
+func (s *providerStore) List(
+	ctx context.Context,
+	req *iapiserver.ProviderListRequest,
+) ([]*iapiserver.Provider, int64, error) {
 	var items []*iapiserver.Provider
 	var total int64
 	filter := func(q *gorm.DB) *gorm.DB {
@@ -61,7 +65,10 @@ type providerModelStore struct{ ds *datastore }
 
 func newProviderModel(ds *datastore) *providerModelStore { return &providerModelStore{ds: ds} }
 
-func (s *providerModelStore) List(ctx context.Context, req *iapiserver.ProviderModelListRequest) ([]*iapiserver.ProviderModel, int64, error) {
+func (s *providerModelStore) List(
+	ctx context.Context,
+	req *iapiserver.ProviderModelListRequest,
+) ([]*iapiserver.ProviderModel, int64, error) {
 	var items []*iapiserver.ProviderModel
 	var total int64
 	filter := func(q *gorm.DB) *gorm.DB {
@@ -91,14 +98,20 @@ func (s *providerModelStore) Get(ctx context.Context, id string) (*iapiserver.Pr
 	return &item, nil
 }
 
-func (s *providerModelStore) Add(ctx context.Context, data *iapiserver.ProviderModel) (*iapiserver.ProviderModel, error) {
+func (s *providerModelStore) Add(
+	ctx context.Context,
+	data *iapiserver.ProviderModel,
+) (*iapiserver.ProviderModel, error) {
 	if err := s.ds.db.WithContext(ctx).Create(data).Error; err != nil {
 		return nil, errors.WithStack(err)
 	}
 	return data, nil
 }
 
-func (s *providerModelStore) Update(ctx context.Context, data *iapiserver.ProviderModel) (*iapiserver.ProviderModel, error) {
+func (s *providerModelStore) Update(
+	ctx context.Context,
+	data *iapiserver.ProviderModel,
+) (*iapiserver.ProviderModel, error) {
 	if err := s.ds.db.WithContext(ctx).Save(data).Error; err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -119,7 +132,10 @@ func (s *providerCapabilityStore) List(ctx context.Context) ([]*iapiserver.Provi
 	return items, nil
 }
 
-func (s *providerCapabilityStore) Add(ctx context.Context, data *iapiserver.ProviderCapability) (*iapiserver.ProviderCapability, error) {
+func (s *providerCapabilityStore) Add(
+	ctx context.Context,
+	data *iapiserver.ProviderCapability,
+) (*iapiserver.ProviderCapability, error) {
 	if err := s.ds.db.WithContext(ctx).Create(data).Error; err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -140,7 +156,10 @@ func (s *systemLLMConfigStore) List(ctx context.Context) ([]*iapiserver.SystemLL
 	return items, nil
 }
 
-func (s *systemLLMConfigStore) Upsert(ctx context.Context, data *iapiserver.SystemLLMConfig) (*iapiserver.SystemLLMConfig, error) {
+func (s *systemLLMConfigStore) Upsert(
+	ctx context.Context,
+	data *iapiserver.SystemLLMConfig,
+) (*iapiserver.SystemLLMConfig, error) {
 	var existing iapiserver.SystemLLMConfig
 	err := s.ds.db.WithContext(ctx).Where("purpose = ?", data.Purpose).First(&existing).Error
 	if err == nil {
@@ -167,7 +186,10 @@ type storageBackendStore struct{ ds *datastore }
 
 func newStorageBackend(ds *datastore) *storageBackendStore { return &storageBackendStore{ds: ds} }
 
-func (s *storageBackendStore) List(ctx context.Context, req *iapiserver.StorageBackendListRequest) ([]*iapiserver.StorageBackend, int64, error) {
+func (s *storageBackendStore) List(
+	ctx context.Context,
+	req *iapiserver.StorageBackendListRequest,
+) ([]*iapiserver.StorageBackend, int64, error) {
 	var items []*iapiserver.StorageBackend
 	var total int64
 	filter := func(q *gorm.DB) *gorm.DB {
@@ -194,14 +216,20 @@ func (s *storageBackendStore) Get(ctx context.Context, id string) (*iapiserver.S
 	return &item, nil
 }
 
-func (s *storageBackendStore) Add(ctx context.Context, data *iapiserver.StorageBackend) (*iapiserver.StorageBackend, error) {
+func (s *storageBackendStore) Add(
+	ctx context.Context,
+	data *iapiserver.StorageBackend,
+) (*iapiserver.StorageBackend, error) {
 	if err := s.ds.db.WithContext(ctx).Create(data).Error; err != nil {
 		return nil, errors.WithStack(err)
 	}
 	return data, nil
 }
 
-func (s *storageBackendStore) Update(ctx context.Context, data *iapiserver.StorageBackend) (*iapiserver.StorageBackend, error) {
+func (s *storageBackendStore) Update(
+	ctx context.Context,
+	data *iapiserver.StorageBackend,
+) (*iapiserver.StorageBackend, error) {
 	if err := s.ds.db.WithContext(ctx).Save(data).Error; err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -224,7 +252,10 @@ type platformAssetStore struct{ ds *datastore }
 
 func newPlatformAsset(ds *datastore) *platformAssetStore { return &platformAssetStore{ds: ds} }
 
-func (s *platformAssetStore) List(ctx context.Context, req *iapiserver.AssetListRequest) ([]*iapiserver.Asset, int64, error) {
+func (s *platformAssetStore) List(
+	ctx context.Context,
+	req *iapiserver.AssetListRequest,
+) ([]*iapiserver.Asset, int64, error) {
 	var items []*iapiserver.Asset
 	var total int64
 	filter := func(q *gorm.DB) *gorm.DB {
@@ -323,7 +354,10 @@ func (s *assetThumbnailStore) GetByAsset(ctx context.Context, assetID string) (*
 	return &item, nil
 }
 
-func (s *assetThumbnailStore) ListByAssetIDs(ctx context.Context, assetIDs []string) ([]*iapiserver.AssetThumbnail, error) {
+func (s *assetThumbnailStore) ListByAssetIDs(
+	ctx context.Context,
+	assetIDs []string,
+) ([]*iapiserver.AssetThumbnail, error) {
 	var items []*iapiserver.AssetThumbnail
 	if len(assetIDs) == 0 {
 		return items, nil
@@ -334,14 +368,20 @@ func (s *assetThumbnailStore) ListByAssetIDs(ctx context.Context, assetIDs []str
 	return items, nil
 }
 
-func (s *assetThumbnailStore) Add(ctx context.Context, data *iapiserver.AssetThumbnail) (*iapiserver.AssetThumbnail, error) {
+func (s *assetThumbnailStore) Add(
+	ctx context.Context,
+	data *iapiserver.AssetThumbnail,
+) (*iapiserver.AssetThumbnail, error) {
 	if err := s.ds.db.WithContext(ctx).Create(data).Error; err != nil {
 		return nil, errors.WithStack(err)
 	}
 	return data, nil
 }
 
-func (s *assetThumbnailStore) Update(ctx context.Context, data *iapiserver.AssetThumbnail) (*iapiserver.AssetThumbnail, error) {
+func (s *assetThumbnailStore) Update(
+	ctx context.Context,
+	data *iapiserver.AssetThumbnail,
+) (*iapiserver.AssetThumbnail, error) {
 	if err := s.ds.db.WithContext(ctx).Save(data).Error; err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -449,7 +489,10 @@ func newAssetGroupMember(ds *datastore) *assetGroupMemberStore {
 	return &assetGroupMemberStore{ds: ds}
 }
 
-func (s *assetGroupMemberStore) BatchAdd(ctx context.Context, members []*iapiserver.AssetGroupMember) ([]*iapiserver.AssetGroupMember, error) {
+func (s *assetGroupMemberStore) BatchAdd(
+	ctx context.Context,
+	members []*iapiserver.AssetGroupMember,
+) ([]*iapiserver.AssetGroupMember, error) {
 	if len(members) == 0 {
 		return members, nil
 	}
@@ -463,7 +506,10 @@ type assetRelationStore struct{ ds *datastore }
 
 func newAssetRelation(ds *datastore) *assetRelationStore { return &assetRelationStore{ds: ds} }
 
-func (s *assetRelationStore) Add(ctx context.Context, data *iapiserver.AssetRelation) (*iapiserver.AssetRelation, error) {
+func (s *assetRelationStore) Add(
+	ctx context.Context,
+	data *iapiserver.AssetRelation,
+) (*iapiserver.AssetRelation, error) {
 	if err := s.ds.db.WithContext(ctx).Create(data).Error; err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -544,7 +590,12 @@ func (s *taskStore) Cancel(ctx context.Context, id string) (*iapiserver.Task, er
 	return s.Update(ctx, task)
 }
 
-func (s *taskStore) Claim(ctx context.Context, queue, worker string, limit int, lease time.Duration) ([]*iapiserver.Task, error) {
+func (s *taskStore) Claim(
+	ctx context.Context,
+	queue, worker string,
+	limit int,
+	lease time.Duration,
+) ([]*iapiserver.Task, error) {
 	if queue == "" {
 		queue = "default"
 	}

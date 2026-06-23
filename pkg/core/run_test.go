@@ -3,9 +3,10 @@ package core_test
 import (
 	"testing"
 
-	"github.com/wangweihong/omnimam/internal/pkg/code"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"github.com/wangweihong/gotoolbox/pkg/log"
+
+	"github.com/wangweihong/omnimam/internal/pkg/code"
 )
 
 func TestRun(t *testing.T) {

@@ -3,15 +3,19 @@ package setting
 import (
 	"context"
 
-	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"github.com/wangweihong/gotoolbox/pkg/httpcli"
 	"github.com/wangweihong/gotoolbox/pkg/randutil"
 	"github.com/wangweihong/gotoolbox/pkg/tokenutil"
+
+	"github.com/wangweihong/omnimam/apis/iapiserver"
 )
 
 // SP发起SSO请求(Oauth2)
-func (s *settingService) ServiceProviderSsoOauth2Initiator(ctx context.Context, req *iapiserver.SpSSOInitiatorRequest) (string, error) {
+func (s *settingService) ServiceProviderSsoOauth2Initiator(
+	ctx context.Context,
+	req *iapiserver.SpSSOInitiatorRequest,
+) (string, error) {
 	idp, err := s.store.IdentityProviders().GetByName(ctx, req.IdentityProviderName)
 	if err != nil {
 		return "", errors.WithStack(err)
@@ -55,7 +59,8 @@ func (s *settingService) ServiceProviderSsoOauth2Initiator(ctx context.Context, 
 
 // 由前端处理idp回调后, 在请求当前
 // SP处理SSO回应(Oauth2)
-// func (s *settingService) ServiceProviderSsoOauth2Callback(ctx context.Context, req *iapiserver.SpSsoOauth2CallbackRequest) (string, error) {
+// func (s *settingService) ServiceProviderSsoOauth2Callback(ctx context.Context, req
+// *iapiserver.SpSsoOauth2CallbackRequest) (string, error) {
 // 	ott, err := s.store.OneTimeTokens().GetByHash(ctx, req.State)
 // 	if err != nil {
 // 		return "", errors.WithStack(err)
@@ -86,7 +91,12 @@ type TokenResponse struct {
 	Scope        string `json:"scope,omitempty"`
 }
 
-func oauth2ExchangeCodeForToken(idp *iapiserver.IdentityProvider, frontendRedirectURI string, code string, codeVerifier string) (*TokenResponse, error) {
+func oauth2ExchangeCodeForToken(
+	idp *iapiserver.IdentityProvider,
+	frontendRedirectURI string,
+	code string,
+	codeVerifier string,
+) (*TokenResponse, error) {
 	httpResp, err := httpcli.NewHttpRequestBuilder().POST().
 		WithEndpoint(idp.Endpoint+"/"+idp.Oauth2.TokenURI).
 		AddQueryParam("grant_type", "authorization_code").

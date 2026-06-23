@@ -3,7 +3,7 @@ package iapiserver
 type (
 	OTPValidateRequest struct {
 		UserID string `json:"user_id" binding:"required"`
-		OTP    string `json:"otp" binding:"required"`
+		OTP    string `json:"otp"     binding:"required"`
 	}
 
 	OTPValidateResponse struct {

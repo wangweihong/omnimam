@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	srvv1 "github.com/wangweihong/omnimam/internal/apiserver/service/v1"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
@@ -87,9 +88,13 @@ func (pc *PlatformController) GetSystemLLMConfig(c *gin.Context) {
 }
 
 func (pc *PlatformController) PutSystemLLMConfig(c *gin.Context) {
-	core.Run(c, &iapiserver.SystemLLMConfigUpsertRequest{}, func(r *iapiserver.SystemLLMConfigUpsertRequest) (any, error) {
-		return pc.srv.Platforms().SystemLLMConfigUpsert(c, r)
-	})
+	core.Run(
+		c,
+		&iapiserver.SystemLLMConfigUpsertRequest{},
+		func(r *iapiserver.SystemLLMConfigUpsertRequest) (any, error) {
+			return pc.srv.Platforms().SystemLLMConfigUpsert(c, r)
+		},
+	)
 }
 
 func (pc *PlatformController) ListStorageBackends(c *gin.Context) {
@@ -99,9 +104,13 @@ func (pc *PlatformController) ListStorageBackends(c *gin.Context) {
 }
 
 func (pc *PlatformController) CreateStorageBackend(c *gin.Context) {
-	core.Run(c, &iapiserver.StorageBackendCreateRequest{}, func(r *iapiserver.StorageBackendCreateRequest) (any, error) {
-		return pc.srv.Platforms().StorageBackendCreate(c, r)
-	})
+	core.Run(
+		c,
+		&iapiserver.StorageBackendCreateRequest{},
+		func(r *iapiserver.StorageBackendCreateRequest) (any, error) {
+			return pc.srv.Platforms().StorageBackendCreate(c, r)
+		},
+	)
 }
 
 func (pc *PlatformController) UpdateStorageBackend(c *gin.Context) {

@@ -4,23 +4,39 @@ import (
 	"context"
 
 	"github.com/wangweihong/gotoolbox/pkg/errors"
+
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
 )
 
 type PromptSrv interface {
 	PromptLibraryList(ctx context.Context) (*iapiserver.PromptLibraryListResponse, error)
-	PromptLibraryCreate(ctx context.Context, req *iapiserver.PromptLibraryCreateRequest) (*iapiserver.PromptLibraryFull, error)
-	PromptLibraryUpdate(ctx context.Context, req *iapiserver.PromptLibraryUpdateRequest) (*iapiserver.PromptLibraryFull, error)
+	PromptLibraryCreate(
+		ctx context.Context,
+		req *iapiserver.PromptLibraryCreateRequest,
+	) (*iapiserver.PromptLibraryFull, error)
+	PromptLibraryUpdate(
+		ctx context.Context,
+		req *iapiserver.PromptLibraryUpdateRequest,
+	) (*iapiserver.PromptLibraryFull, error)
 	PromptLibraryDelete(ctx context.Context, req *iapiserver.PromptLibraryDeleteRequest) error
 
-	PromptItemCreate(ctx context.Context, req *iapiserver.PromptItemCreateRequest) (*iapiserver.PromptItemCreateResponse, error)
+	PromptItemCreate(
+		ctx context.Context,
+		req *iapiserver.PromptItemCreateRequest,
+	) (*iapiserver.PromptItemCreateResponse, error)
 	PromptItemUpdate(ctx context.Context, req *iapiserver.PromptItemUpdateRequest) (*iapiserver.PromptItem, error)
 	PromptItemDelete(ctx context.Context, req *iapiserver.PromptItemDeleteRequest) error
 	PromptItemBatchDelete(ctx context.Context, req *iapiserver.PromptItemBatchDeleteRequest) (int, error)
 
-	PromptCategoryCreate(ctx context.Context, req *iapiserver.PromptCategoryCreateRequest) (*iapiserver.PromptCategory, error)
-	PromptCategoryUpdate(ctx context.Context, req *iapiserver.PromptCategoryUpdateRequest) (*iapiserver.PromptCategory, error)
+	PromptCategoryCreate(
+		ctx context.Context,
+		req *iapiserver.PromptCategoryCreateRequest,
+	) (*iapiserver.PromptCategory, error)
+	PromptCategoryUpdate(
+		ctx context.Context,
+		req *iapiserver.PromptCategoryUpdateRequest,
+	) (*iapiserver.PromptCategory, error)
 	PromptCategoryDelete(ctx context.Context, req *iapiserver.PromptCategoryDeleteRequest) error
 }
 
@@ -32,7 +48,10 @@ func NewService(str store.Factory) *promptService {
 	return &promptService{store: str}
 }
 
-func (s *promptService) buildLibraryFull(ctx context.Context, lib *iapiserver.PromptLibrary) (*iapiserver.PromptLibraryFull, error) {
+func (s *promptService) buildLibraryFull(
+	ctx context.Context,
+	lib *iapiserver.PromptLibrary,
+) (*iapiserver.PromptLibraryFull, error) {
 	categories, err := s.store.PromptCategories().ListByLibrary(ctx, lib.ID)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -77,7 +96,10 @@ func (s *promptService) PromptLibraryList(ctx context.Context) (*iapiserver.Prom
 	}, nil
 }
 
-func (s *promptService) PromptLibraryCreate(ctx context.Context, req *iapiserver.PromptLibraryCreateRequest) (*iapiserver.PromptLibraryFull, error) {
+func (s *promptService) PromptLibraryCreate(
+	ctx context.Context,
+	req *iapiserver.PromptLibraryCreateRequest,
+) (*iapiserver.PromptLibraryFull, error) {
 	lib := &iapiserver.PromptLibrary{}
 	lib.Name = req.Name
 	lib.System = false
@@ -96,7 +118,10 @@ func (s *promptService) PromptLibraryCreate(ctx context.Context, req *iapiserver
 	return s.buildLibraryFull(ctx, created)
 }
 
-func (s *promptService) PromptLibraryUpdate(ctx context.Context, req *iapiserver.PromptLibraryUpdateRequest) (*iapiserver.PromptLibraryFull, error) {
+func (s *promptService) PromptLibraryUpdate(
+	ctx context.Context,
+	req *iapiserver.PromptLibraryUpdateRequest,
+) (*iapiserver.PromptLibraryFull, error) {
 	lib := &iapiserver.PromptLibrary{}
 	lib.ID = req.ID
 	lib.Name = req.Name
@@ -118,7 +143,10 @@ func (s *promptService) PromptLibraryDelete(ctx context.Context, req *iapiserver
 	return nil
 }
 
-func (s *promptService) PromptItemCreate(ctx context.Context, req *iapiserver.PromptItemCreateRequest) (*iapiserver.PromptItemCreateResponse, error) {
+func (s *promptService) PromptItemCreate(
+	ctx context.Context,
+	req *iapiserver.PromptItemCreateRequest,
+) (*iapiserver.PromptItemCreateResponse, error) {
 	_, err := s.store.PromptLibraries().Get(ctx, req.LibraryID)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -144,7 +172,10 @@ func (s *promptService) PromptItemCreate(ctx context.Context, req *iapiserver.Pr
 	return &iapiserver.PromptItemCreateResponse{Item: created}, nil
 }
 
-func (s *promptService) PromptItemUpdate(ctx context.Context, req *iapiserver.PromptItemUpdateRequest) (*iapiserver.PromptItem, error) {
+func (s *promptService) PromptItemUpdate(
+	ctx context.Context,
+	req *iapiserver.PromptItemUpdateRequest,
+) (*iapiserver.PromptItem, error) {
 	item := &iapiserver.PromptItem{}
 	item.ID = req.ID
 	item.Name = req.Name
@@ -167,7 +198,10 @@ func (s *promptService) PromptItemDelete(ctx context.Context, req *iapiserver.Pr
 	return nil
 }
 
-func (s *promptService) PromptItemBatchDelete(ctx context.Context, req *iapiserver.PromptItemBatchDeleteRequest) (int, error) {
+func (s *promptService) PromptItemBatchDelete(
+	ctx context.Context,
+	req *iapiserver.PromptItemBatchDeleteRequest,
+) (int, error) {
 	removed, err := s.store.PromptItems().BatchDelete(ctx, req.IDs)
 	if err != nil {
 		return 0, errors.WithStack(err)
@@ -175,7 +209,10 @@ func (s *promptService) PromptItemBatchDelete(ctx context.Context, req *iapiserv
 	return removed, nil
 }
 
-func (s *promptService) PromptCategoryCreate(ctx context.Context, req *iapiserver.PromptCategoryCreateRequest) (*iapiserver.PromptCategory, error) {
+func (s *promptService) PromptCategoryCreate(
+	ctx context.Context,
+	req *iapiserver.PromptCategoryCreateRequest,
+) (*iapiserver.PromptCategory, error) {
 	cat := &iapiserver.PromptCategory{}
 	cat.Name = req.Name
 	cat.LibraryID = req.LibraryID
@@ -187,7 +224,10 @@ func (s *promptService) PromptCategoryCreate(ctx context.Context, req *iapiserve
 	return created, nil
 }
 
-func (s *promptService) PromptCategoryUpdate(ctx context.Context, req *iapiserver.PromptCategoryUpdateRequest) (*iapiserver.PromptCategory, error) {
+func (s *promptService) PromptCategoryUpdate(
+	ctx context.Context,
+	req *iapiserver.PromptCategoryUpdateRequest,
+) (*iapiserver.PromptCategory, error) {
 	cat := &iapiserver.PromptCategory{}
 	cat.ID = req.ID
 	cat.Name = req.Name

@@ -1,8 +1,9 @@
-# Quick local deployment for OmniMAM API Server and Task Worker.
+# Quick local deployment for OmniMAM Frontend, API Server, and Task Worker.
 #
 # Build local images first, for example:
 #   make configs
 #   make image VERSION=latest REGISTRY_PREFIX=omnimam
+#   make frontend.image FRONTEND_VERSION=latest FRONTEND_REGISTRY_PREFIX=omnimam
 #   docker compose -f deployments/docker-compose.yaml up -d
 #
 # The Makefile image rule tags host-arch images as <version>-<arch>.
@@ -167,6 +168,16 @@ services:
       - omnimam_logs:/var/log/omnimam
       - omnimam_debug:/var/lib/omnimam/debug
       - omnimam_assets:/var/lib/omnimam/assets
+
+  frontend:
+    image: ${OMNIMAM_REGISTRY_PREFIX:-omnimam}/frontend:${OMNIMAM_FRONTEND_IMAGE_TAG:-latest}
+    container_name: omnimam-frontend
+    restart: unless-stopped
+    depends_on:
+      apiserver:
+        condition: service_started
+    ports:
+      - "${OMNIMAM_FRONTEND_PORT:-9990}:80"
 
 volumes:
   omnimam_postgres_data:

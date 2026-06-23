@@ -12,12 +12,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/wangweihong/omnimam/apis/iapiserver"
-	"github.com/wangweihong/omnimam/internal/apiserver"
-	"github.com/wangweihong/omnimam/internal/apiserver/store"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"github.com/wangweihong/gotoolbox/pkg/httpcli"
 	"github.com/wangweihong/gotoolbox/pkg/json"
+
+	"github.com/wangweihong/omnimam/apis/iapiserver"
+	"github.com/wangweihong/omnimam/internal/apiserver"
+	"github.com/wangweihong/omnimam/internal/apiserver/store"
 )
 
 func TestServiceProviderAdd_InvalidEndpoint_Integration(t *testing.T) {

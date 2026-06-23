@@ -3,10 +3,11 @@ package postgresql
 import (
 	"context"
 
-	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/wangweihong/omnimam/apis/iapiserver"
 )
 
 type ssoIdp struct {
@@ -17,7 +18,10 @@ func newIdentityProvider(ds *datastore) *ssoIdp {
 	return &ssoIdp{ds}
 }
 
-func (s *ssoIdp) List(ctx context.Context, param *iapiserver.IdentityProviderListRequest) ([]*iapiserver.IdentityProvider, int64, error) {
+func (s *ssoIdp) List(
+	ctx context.Context,
+	param *iapiserver.IdentityProviderListRequest,
+) ([]*iapiserver.IdentityProvider, int64, error) {
 	var meta []*iapiserver.IdentityProvider
 	var total int64
 
@@ -60,7 +64,12 @@ func (s *ssoIdp) Add(ctx context.Context, data *iapiserver.IdentityProvider) (*i
 			"endpoint": data.Endpoint,
 			"protocol": data.Protocol,
 		}) {
-			return errors.Errorf("exists with name '%v' protocol '%v' endpoint '%v'", data.Name, data.Protocol, data.Endpoint)
+			return errors.Errorf(
+				"exists with name '%v' protocol '%v' endpoint '%v'",
+				data.Name,
+				data.Protocol,
+				data.Endpoint,
+			)
 		}
 
 		if err := tx.Create(data).Error; err != nil {

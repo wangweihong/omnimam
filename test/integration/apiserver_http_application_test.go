@@ -112,7 +112,8 @@ package integration_test
 // 		err = json.Unmarshal(w.Body.Bytes(), &resp)
 // 		So(err, ShouldBeNil)
 // 		source := 0
-// 		stores, _, err := storeIns.AppStores().Query(context.Background(), &iapiserver.AppStoreListRequest{AppSource: &source})
+// 		stores, _, err := storeIns.AppStores().Query(context.Background(), &iapiserver.AppStoreListRequest{AppSource:
+// &source})
 // 		So(err, ShouldBeNil)
 // 		So(len(stores), ShouldEqual, len(resp.List))
 

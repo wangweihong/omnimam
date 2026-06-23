@@ -3,10 +3,11 @@ package postgresql
 import (
 	"context"
 
-	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/wangweihong/omnimam/apis/iapiserver"
 )
 
 type serviceProvider struct {
@@ -17,7 +18,10 @@ func newServiceProvider(ds *datastore) *serviceProvider {
 	return &serviceProvider{ds}
 }
 
-func (s *serviceProvider) List(ctx context.Context, param *iapiserver.ServiceProviderListRequest) ([]*iapiserver.ServiceProvider, int64, error) {
+func (s *serviceProvider) List(
+	ctx context.Context,
+	param *iapiserver.ServiceProviderListRequest,
+) ([]*iapiserver.ServiceProvider, int64, error) {
 	var meta []*iapiserver.ServiceProvider
 	var total int64
 
@@ -43,7 +47,11 @@ func (s *serviceProvider) Get(ctx context.Context, id string) (*iapiserver.Servi
 	return &meta, err
 }
 
-func (s *serviceProvider) GetByKey(ctx context.Context,protocol string, key string) (*iapiserver.ServiceProvider, error) {
+func (s *serviceProvider) GetByKey(
+	ctx context.Context,
+	protocol string,
+	key string,
+) (*iapiserver.ServiceProvider, error) {
 	metas, _, err := s.List(ctx, &iapiserver.ServiceProviderListRequest{Protocol: protocol})
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -69,14 +77,22 @@ func (s *serviceProvider) GetByName(ctx context.Context, name string) (*iapiserv
 	return &meta, err
 }
 
-func (s *serviceProvider) Add(ctx context.Context, data *iapiserver.ServiceProvider) (*iapiserver.ServiceProvider, error) {
+func (s *serviceProvider) Add(
+	ctx context.Context,
+	data *iapiserver.ServiceProvider,
+) (*iapiserver.ServiceProvider, error) {
 	err := s.ds.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if CheckExists(tx, &iapiserver.ServiceProvider{}, map[string]any{
 			"name":     data.Name,
 			"endpoint": data.Endpoint,
 			"protocol": data.Protocol,
 		}) {
-			return errors.Errorf("exists with name '%v' protocol '%v' endpoint '%v'", data.Name, data.Protocol, data.Endpoint)
+			return errors.Errorf(
+				"exists with name '%v' protocol '%v' endpoint '%v'",
+				data.Name,
+				data.Protocol,
+				data.Endpoint,
+			)
 		}
 
 		if err := tx.Create(data).Error; err != nil {
@@ -94,7 +110,10 @@ func (s *serviceProvider) Delete(ctx context.Context, id string) error {
 	})
 }
 
-func (s *serviceProvider) Update(ctx context.Context, data *iapiserver.ServiceProvider) (*iapiserver.ServiceProvider, error) {
+func (s *serviceProvider) Update(
+	ctx context.Context,
+	data *iapiserver.ServiceProvider,
+) (*iapiserver.ServiceProvider, error) {
 	result := iapiserver.ServiceProvider{}
 	// 1. 尝试锁定并查询现有记录（使用悲观锁）
 	err := s.ds.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

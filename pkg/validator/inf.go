@@ -9,7 +9,6 @@ import (
 	"github.com/wangweihong/gotoolbox/pkg/validation"
 )
 
-
 func ValidateList(vs ...validation.Validator) error {
 	var errs []error
 	for _, v := range vs {

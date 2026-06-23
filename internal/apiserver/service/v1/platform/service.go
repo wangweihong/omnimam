@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
+
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/omnimam/apis/imachinery"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
@@ -31,25 +32,57 @@ type PlatformSrv interface {
 	ProviderList(ctx context.Context, req *iapiserver.ProviderListRequest) (*iapiserver.ProviderListResponse, error)
 	ProviderCreate(ctx context.Context, req *iapiserver.ProviderCreateRequest) (*iapiserver.Provider, error)
 	ProviderUpdate(ctx context.Context, req *iapiserver.ProviderUpdateRequest) (*iapiserver.Provider, error)
-	ProviderModelList(ctx context.Context, req *iapiserver.ProviderModelListRequest) (*iapiserver.ProviderModelListResponse, error)
-	ProviderModelCreate(ctx context.Context, req *iapiserver.ProviderModelCreateRequest) (*iapiserver.ProviderModel, error)
-	ProviderModelUpdate(ctx context.Context, req *iapiserver.ProviderModelUpdateRequest) (*iapiserver.ProviderModel, error)
+	ProviderModelList(
+		ctx context.Context,
+		req *iapiserver.ProviderModelListRequest,
+	) (*iapiserver.ProviderModelListResponse, error)
+	ProviderModelCreate(
+		ctx context.Context,
+		req *iapiserver.ProviderModelCreateRequest,
+	) (*iapiserver.ProviderModel, error)
+	ProviderModelUpdate(
+		ctx context.Context,
+		req *iapiserver.ProviderModelUpdateRequest,
+	) (*iapiserver.ProviderModel, error)
 	SystemLLMConfigList(ctx context.Context) (*iapiserver.SystemLLMConfigListResponse, error)
-	SystemLLMConfigUpsert(ctx context.Context, req *iapiserver.SystemLLMConfigUpsertRequest) (*iapiserver.SystemLLMConfigListResponse, error)
+	SystemLLMConfigUpsert(
+		ctx context.Context,
+		req *iapiserver.SystemLLMConfigUpsertRequest,
+	) (*iapiserver.SystemLLMConfigListResponse, error)
 
-	StorageBackendList(ctx context.Context, req *iapiserver.StorageBackendListRequest) (*iapiserver.StorageBackendListResponse, error)
-	StorageBackendCreate(ctx context.Context, req *iapiserver.StorageBackendCreateRequest) (*iapiserver.StorageBackend, error)
-	StorageBackendUpdate(ctx context.Context, req *iapiserver.StorageBackendUpdateRequest) (*iapiserver.StorageBackend, error)
+	StorageBackendList(
+		ctx context.Context,
+		req *iapiserver.StorageBackendListRequest,
+	) (*iapiserver.StorageBackendListResponse, error)
+	StorageBackendCreate(
+		ctx context.Context,
+		req *iapiserver.StorageBackendCreateRequest,
+	) (*iapiserver.StorageBackend, error)
+	StorageBackendUpdate(
+		ctx context.Context,
+		req *iapiserver.StorageBackendUpdateRequest,
+	) (*iapiserver.StorageBackend, error)
 
-	AssetUpload(ctx context.Context, file *multipart.FileHeader, tagNames []string, sourceType string) (*iapiserver.AssetUploadResponse, error)
+	AssetUpload(
+		ctx context.Context,
+		file *multipart.FileHeader,
+		tagNames []string,
+		sourceType string,
+	) (*iapiserver.AssetUploadResponse, error)
 	AssetList(ctx context.Context, req *iapiserver.AssetListRequest) (*iapiserver.AssetListResponse, error)
 	AssetSearch(ctx context.Context, req *iapiserver.AssetSearchRequest) (*iapiserver.AssetListResponse, error)
-	AssetSearchParse(ctx context.Context, req *iapiserver.AssetSearchParseRequest) (*iapiserver.AssetSearchParseResponse, error)
+	AssetSearchParse(
+		ctx context.Context,
+		req *iapiserver.AssetSearchParseRequest,
+	) (*iapiserver.AssetSearchParseResponse, error)
 	AssetGet(ctx context.Context, id string) (*iapiserver.AssetRecord, error)
 	AssetUpdate(ctx context.Context, req *iapiserver.AssetUpdateRequest) (*iapiserver.AssetRecord, error)
 	AssetContentPath(ctx context.Context, id string) (string, string, error)
 	AssetThumbnailPath(ctx context.Context, id string) (string, string, error)
-	AssetGroupCreate(ctx context.Context, req *iapiserver.AssetGroupCreateRequest) (*iapiserver.AssetGroupCreateResponse, error)
+	AssetGroupCreate(
+		ctx context.Context,
+		req *iapiserver.AssetGroupCreateRequest,
+	) (*iapiserver.AssetGroupCreateResponse, error)
 
 	TaskList(ctx context.Context, req *iapiserver.TaskListRequest) (*iapiserver.TaskListResponse, error)
 	TaskCreate(ctx context.Context, req *iapiserver.TaskCreateRequest) (*iapiserver.Task, error)
@@ -99,7 +132,10 @@ func (s *platformService) Me(ctx context.Context) (*iapiserver.MeResponse, error
 	}, nil
 }
 
-func (s *platformService) ProviderList(ctx context.Context, req *iapiserver.ProviderListRequest) (*iapiserver.ProviderListResponse, error) {
+func (s *platformService) ProviderList(
+	ctx context.Context,
+	req *iapiserver.ProviderListRequest,
+) (*iapiserver.ProviderListResponse, error) {
 	items, total, err := s.store.Providers().List(ctx, req)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -107,7 +143,10 @@ func (s *platformService) ProviderList(ctx context.Context, req *iapiserver.Prov
 	return &iapiserver.ProviderListResponse{ListRet: imachinery.ListRet{Total: total}, Providers: items}, nil
 }
 
-func (s *platformService) ProviderCreate(ctx context.Context, req *iapiserver.ProviderCreateRequest) (*iapiserver.Provider, error) {
+func (s *platformService) ProviderCreate(
+	ctx context.Context,
+	req *iapiserver.ProviderCreateRequest,
+) (*iapiserver.Provider, error) {
 	enabled := true
 	if req.Enabled != nil {
 		enabled = *req.Enabled
@@ -129,7 +168,10 @@ func (s *platformService) ProviderCreate(ctx context.Context, req *iapiserver.Pr
 	return s.store.Providers().Add(ctx, provider)
 }
 
-func (s *platformService) ProviderUpdate(ctx context.Context, req *iapiserver.ProviderUpdateRequest) (*iapiserver.Provider, error) {
+func (s *platformService) ProviderUpdate(
+	ctx context.Context,
+	req *iapiserver.ProviderUpdateRequest,
+) (*iapiserver.Provider, error) {
 	provider, err := s.store.Providers().Get(ctx, req.ID)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -155,7 +197,10 @@ func (s *platformService) ProviderUpdate(ctx context.Context, req *iapiserver.Pr
 	return s.store.Providers().Update(ctx, provider)
 }
 
-func (s *platformService) ProviderModelList(ctx context.Context, req *iapiserver.ProviderModelListRequest) (*iapiserver.ProviderModelListResponse, error) {
+func (s *platformService) ProviderModelList(
+	ctx context.Context,
+	req *iapiserver.ProviderModelListRequest,
+) (*iapiserver.ProviderModelListResponse, error) {
 	items, total, err := s.store.ProviderModels().List(ctx, req)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -163,7 +208,10 @@ func (s *platformService) ProviderModelList(ctx context.Context, req *iapiserver
 	return &iapiserver.ProviderModelListResponse{ListRet: imachinery.ListRet{Total: total}, Models: items}, nil
 }
 
-func (s *platformService) ProviderModelCreate(ctx context.Context, req *iapiserver.ProviderModelCreateRequest) (*iapiserver.ProviderModel, error) {
+func (s *platformService) ProviderModelCreate(
+	ctx context.Context,
+	req *iapiserver.ProviderModelCreateRequest,
+) (*iapiserver.ProviderModel, error) {
 	enabled := true
 	if req.Enabled != nil {
 		enabled = *req.Enabled
@@ -179,7 +227,10 @@ func (s *platformService) ProviderModelCreate(ctx context.Context, req *iapiserv
 	return s.store.ProviderModels().Add(ctx, model)
 }
 
-func (s *platformService) ProviderModelUpdate(ctx context.Context, req *iapiserver.ProviderModelUpdateRequest) (*iapiserver.ProviderModel, error) {
+func (s *platformService) ProviderModelUpdate(
+	ctx context.Context,
+	req *iapiserver.ProviderModelUpdateRequest,
+) (*iapiserver.ProviderModel, error) {
 	model, err := s.store.ProviderModels().Get(ctx, req.ID)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -210,7 +261,10 @@ func (s *platformService) SystemLLMConfigList(ctx context.Context) (*iapiserver.
 	return &iapiserver.SystemLLMConfigListResponse{Configs: configs}, nil
 }
 
-func (s *platformService) SystemLLMConfigUpsert(ctx context.Context, req *iapiserver.SystemLLMConfigUpsertRequest) (*iapiserver.SystemLLMConfigListResponse, error) {
+func (s *platformService) SystemLLMConfigUpsert(
+	ctx context.Context,
+	req *iapiserver.SystemLLMConfigUpsertRequest,
+) (*iapiserver.SystemLLMConfigListResponse, error) {
 	for _, spec := range req.Configs {
 		enabled := true
 		if spec.Enabled != nil {
@@ -231,7 +285,10 @@ func (s *platformService) SystemLLMConfigUpsert(ctx context.Context, req *iapise
 	return s.SystemLLMConfigList(ctx)
 }
 
-func (s *platformService) StorageBackendList(ctx context.Context, req *iapiserver.StorageBackendListRequest) (*iapiserver.StorageBackendListResponse, error) {
+func (s *platformService) StorageBackendList(
+	ctx context.Context,
+	req *iapiserver.StorageBackendListRequest,
+) (*iapiserver.StorageBackendListResponse, error) {
 	items, total, err := s.store.StorageBackends().List(ctx, req)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -239,7 +296,10 @@ func (s *platformService) StorageBackendList(ctx context.Context, req *iapiserve
 	return &iapiserver.StorageBackendListResponse{ListRet: imachinery.ListRet{Total: total}, Backends: items}, nil
 }
 
-func (s *platformService) StorageBackendCreate(ctx context.Context, req *iapiserver.StorageBackendCreateRequest) (*iapiserver.StorageBackend, error) {
+func (s *platformService) StorageBackendCreate(
+	ctx context.Context,
+	req *iapiserver.StorageBackendCreateRequest,
+) (*iapiserver.StorageBackend, error) {
 	enabled := true
 	if req.Enabled != nil {
 		enabled = *req.Enabled
@@ -267,7 +327,10 @@ func (s *platformService) StorageBackendCreate(ctx context.Context, req *iapiser
 	return s.store.StorageBackends().Add(ctx, backend)
 }
 
-func (s *platformService) StorageBackendUpdate(ctx context.Context, req *iapiserver.StorageBackendUpdateRequest) (*iapiserver.StorageBackend, error) {
+func (s *platformService) StorageBackendUpdate(
+	ctx context.Context,
+	req *iapiserver.StorageBackendUpdateRequest,
+) (*iapiserver.StorageBackend, error) {
 	backend, err := s.store.StorageBackends().Get(ctx, req.ID)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -303,7 +366,12 @@ func (s *platformService) StorageBackendUpdate(ctx context.Context, req *iapiser
 	return s.store.StorageBackends().Update(ctx, backend)
 }
 
-func (s *platformService) AssetUpload(ctx context.Context, fileHeader *multipart.FileHeader, tagNames []string, sourceType string) (*iapiserver.AssetUploadResponse, error) {
+func (s *platformService) AssetUpload(
+	ctx context.Context,
+	fileHeader *multipart.FileHeader,
+	tagNames []string,
+	sourceType string,
+) (*iapiserver.AssetUploadResponse, error) {
 	backend, err := s.ensureDefaultLocalBackend(ctx)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -397,7 +465,11 @@ func (s *platformService) AssetUpload(ctx context.Context, fileHeader *multipart
 	if err != nil {
 		return nil, err
 	}
-	thumbTask, err := s.enqueueTask(ctx, iapiserver.TaskTypeAssetThumbnail, map[string]any{"asset_id": created.ID, "thumbnail_id": thumb.ID})
+	thumbTask, err := s.enqueueTask(
+		ctx,
+		iapiserver.TaskTypeAssetThumbnail,
+		map[string]any{"asset_id": created.ID, "thumbnail_id": thumb.ID},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -408,7 +480,10 @@ func (s *platformService) AssetUpload(ctx context.Context, fileHeader *multipart
 	return &iapiserver.AssetUploadResponse{Asset: record, Tasks: []*iapiserver.Task{probeTask, thumbTask}}, nil
 }
 
-func (s *platformService) AssetList(ctx context.Context, req *iapiserver.AssetListRequest) (*iapiserver.AssetListResponse, error) {
+func (s *platformService) AssetList(
+	ctx context.Context,
+	req *iapiserver.AssetListRequest,
+) (*iapiserver.AssetListResponse, error) {
 	items, total, err := s.store.AssetsV2().List(ctx, req)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -420,13 +495,23 @@ func (s *platformService) AssetList(ctx context.Context, req *iapiserver.AssetLi
 	return &iapiserver.AssetListResponse{ListRet: imachinery.ListRet{Total: total}, Assets: records}, nil
 }
 
-func (s *platformService) AssetSearch(ctx context.Context, req *iapiserver.AssetSearchRequest) (*iapiserver.AssetListResponse, error) {
+func (s *platformService) AssetSearch(
+	ctx context.Context,
+	req *iapiserver.AssetSearchRequest,
+) (*iapiserver.AssetListResponse, error) {
 	return s.AssetList(ctx, &req.Query)
 }
 
-func (s *platformService) AssetSearchParse(ctx context.Context, req *iapiserver.AssetSearchParseRequest) (*iapiserver.AssetSearchParseResponse, error) {
+func (s *platformService) AssetSearchParse(
+	ctx context.Context,
+	req *iapiserver.AssetSearchParseRequest,
+) (*iapiserver.AssetSearchParseResponse, error) {
 	query := parseNaturalAssetQuery(req.Text)
-	task, err := s.enqueueTask(ctx, iapiserver.TaskTypeQueryParse, map[string]any{"text": req.Text, "fallback_query": query})
+	task, err := s.enqueueTask(
+		ctx,
+		iapiserver.TaskTypeQueryParse,
+		map[string]any{"text": req.Text, "fallback_query": query},
+	)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -441,7 +526,10 @@ func (s *platformService) AssetGet(ctx context.Context, id string) (*iapiserver.
 	return s.assetRecord(ctx, asset)
 }
 
-func (s *platformService) AssetUpdate(ctx context.Context, req *iapiserver.AssetUpdateRequest) (*iapiserver.AssetRecord, error) {
+func (s *platformService) AssetUpdate(
+	ctx context.Context,
+	req *iapiserver.AssetUpdateRequest,
+) (*iapiserver.AssetRecord, error) {
 	asset, err := s.store.AssetsV2().Get(ctx, req.ID)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -512,7 +600,10 @@ func (s *platformService) AssetThumbnailPath(ctx context.Context, id string) (st
 	return path, thumb.MimeType, nil
 }
 
-func (s *platformService) AssetGroupCreate(ctx context.Context, req *iapiserver.AssetGroupCreateRequest) (*iapiserver.AssetGroupCreateResponse, error) {
+func (s *platformService) AssetGroupCreate(
+	ctx context.Context,
+	req *iapiserver.AssetGroupCreateRequest,
+) (*iapiserver.AssetGroupCreateResponse, error) {
 	groupType := req.Type
 	if groupType == "" {
 		groupType = iapiserver.AssetGroupTypeCollection
@@ -537,7 +628,10 @@ func (s *platformService) AssetGroupCreate(ctx context.Context, req *iapiserver.
 	return &iapiserver.AssetGroupCreateResponse{Group: created, Members: createdMembers}, nil
 }
 
-func (s *platformService) TaskList(ctx context.Context, req *iapiserver.TaskListRequest) (*iapiserver.TaskListResponse, error) {
+func (s *platformService) TaskList(
+	ctx context.Context,
+	req *iapiserver.TaskListRequest,
+) (*iapiserver.TaskListResponse, error) {
 	tasks, total, err := s.store.Tasks().List(ctx, req)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -573,7 +667,12 @@ func (s *platformService) TaskCancel(ctx context.Context, id string) (*iapiserve
 	return &iapiserver.TaskCancelResponse{Task: task}, nil
 }
 
-func (s *platformService) TaskClaim(ctx context.Context, queue, worker string, limit int, lease time.Duration) ([]*iapiserver.Task, error) {
+func (s *platformService) TaskClaim(
+	ctx context.Context,
+	queue, worker string,
+	limit int,
+	lease time.Duration,
+) ([]*iapiserver.Task, error) {
 	return s.store.Tasks().Claim(ctx, queue, worker, limit, lease)
 }
 
@@ -610,7 +709,10 @@ func (s *platformService) assetRecord(ctx context.Context, asset *iapiserver.Ass
 	return records[0], nil
 }
 
-func (s *platformService) assetRecords(ctx context.Context, assets []*iapiserver.Asset) ([]*iapiserver.AssetRecord, error) {
+func (s *platformService) assetRecords(
+	ctx context.Context,
+	assets []*iapiserver.Asset,
+) ([]*iapiserver.AssetRecord, error) {
 	ids := make([]string, 0, len(assets))
 	for _, asset := range assets {
 		ids = append(ids, asset.ID)
@@ -638,7 +740,12 @@ func (s *platformService) assetRecords(ctx context.Context, assets []*iapiserver
 	return records, nil
 }
 
-func (s *platformService) replaceAssetTags(ctx context.Context, assetID string, tagNames []string, source string) error {
+func (s *platformService) replaceAssetTags(
+	ctx context.Context,
+	assetID string,
+	tagNames []string,
+	source string,
+) error {
 	tags := make([]*iapiserver.Tag, 0, len(tagNames))
 	for _, name := range tagNames {
 		name = strings.TrimSpace(name)
@@ -656,7 +763,11 @@ func (s *platformService) replaceAssetTags(ctx context.Context, assetID string, 
 	return s.store.AssetTags().Replace(ctx, assetID, tags, source)
 }
 
-func (s *platformService) enqueueTask(ctx context.Context, taskType string, input map[string]any) (*iapiserver.Task, error) {
+func (s *platformService) enqueueTask(
+	ctx context.Context,
+	taskType string,
+	input map[string]any,
+) (*iapiserver.Task, error) {
 	task := &iapiserver.Task{
 		Type:        taskType,
 		Status:      iapiserver.TaskStatusPending,
@@ -822,7 +933,8 @@ func parseNaturalAssetQuery(text string) iapiserver.AssetListRequest {
 		_, _ = fmt.Sscanf(match[2], "%d", &query.Height)
 	}
 	resolutionRe := regexp.MustCompile(`(?i)(480|720|1080|1440|2160)p`)
-	if match := resolutionRe.FindStringSubmatch(text); len(match) == 2 && query.MediaType == iapiserver.AssetMediaTypeVideo {
+	if match := resolutionRe.FindStringSubmatch(text); len(match) == 2 &&
+		query.MediaType == iapiserver.AssetMediaTypeVideo {
 		_, _ = fmt.Sscanf(match[1], "%d", &query.Height)
 	}
 	query.Keyword = strings.TrimSpace(text)

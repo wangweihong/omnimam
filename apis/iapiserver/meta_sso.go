@@ -7,13 +7,14 @@ import (
 	"strings"
 
 	"github.com/crewjam/saml/samlsp"
-	"github.com/wangweihong/omnimam/apis/imachinery"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"github.com/wangweihong/gotoolbox/pkg/json"
 	"github.com/wangweihong/gotoolbox/pkg/sets"
 	"github.com/wangweihong/gotoolbox/pkg/sliceutil"
 	"github.com/wangweihong/gotoolbox/pkg/stringutil"
 	"gorm.io/gorm"
+
+	"github.com/wangweihong/omnimam/apis/imachinery"
 )
 
 const (
@@ -54,7 +55,7 @@ func (s *SAMLIdP) Validate() error {
 
 type Oauth2Idp struct {
 	// Idp的验证URI
-	AuthorizeURI string `json:"authorize_uri" `
+	AuthorizeURI string `json:"authorize_uri"`
 	// Idp的令牌URI
 	TokenURI string `json:"token_uri"`
 	// Idp的查询用户信息URI
@@ -74,14 +75,19 @@ func (s *Oauth2Idp) Validate() error {
 		return errors.Errorf("Oauth2Idp is empty when protocol is oauth2")
 	}
 
-	if sliceutil.ZeroCount([]string{s.AuthorizeURI, s.TokenURI, s.UserInfoURI, s.UserNameField, s.ClientID, s.ClientSecret}) != 0 {
+	if sliceutil.ZeroCount(
+		[]string{s.AuthorizeURI, s.TokenURI, s.UserInfoURI, s.UserNameField, s.ClientID, s.ClientSecret},
+	) != 0 {
 		return errors.Errorf("Oauth2Idp param exists empty data")
 	}
 	return nil
 }
 
 // 生成重定向到idp进行sso验证的url
-func (s *Oauth2Idp) AuthCodeRedirectURL(endpoint, state, frontEndRedirectURL string, codeChallenge, CodeChallengeMethod string) string {
+func (s *Oauth2Idp) AuthCodeRedirectURL(
+	endpoint, state, frontEndRedirectURL string,
+	codeChallenge, CodeChallengeMethod string,
+) string {
 	authURL := endpoint + "/" + s.AuthorizeURI
 	var buf bytes.Buffer
 	buf.WriteString(authURL)
@@ -130,8 +136,8 @@ type IdentityProvider struct {
 	Enable   bool       `json:"enable"`
 	Protocol string     `json:"protocol"`
 	Endpoint string     `json:"endpoint"`
-	SAML     *SAMLIdP   `json:"saml" gorm:"-"`
-	Oauth2   *Oauth2Idp `json:"oauth2" gorm:"-"`
+	SAML     *SAMLIdP   `json:"saml"     gorm:"-"`
+	Oauth2   *Oauth2Idp `json:"oauth2"   gorm:"-"`
 }
 
 func (IdentityProvider) TableName() string {
@@ -226,9 +232,9 @@ type ServiceProvider struct {
 	Protocol string `json:"protocol" binding:"required,oneof=saml oauth2"`
 	Endpoint string `json:"endpoint" binding:"required"`
 	// sp应用类型
-	Type string `json:"type" binding:"required"`
+	Type string `json:"type"     binding:"required"`
 
-	SAML   *SAMLSp   `json:"saml" gorm:"-"`
+	SAML   *SAMLSp   `json:"saml"   gorm:"-"`
 	Oauth2 *Oauth2Sp `json:"oauth2" gorm:"-"`
 }
 
