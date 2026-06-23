@@ -38,7 +38,10 @@
 
 - 修改前先检查当前 git branch 是否符合仓库 hook 规则；如果不符合，先切换或创建符合规则的分支。
 - 修改后按用户要求提交 commit；如果用户没有要求提交，不要擅自提交。
-- Commit message 必须满足仓库 `commit-msg` hook，并遵循 Conventional Commit，例如 `feat(platform): add asset contracts`。
+- Commit message 必须满足仓库 `commit-msg` hook，并遵循 Conventional Commit，例如 `feat(frontend): add web console`。
+- `go-gitlint` 当前要求 subject 长度不超过 72 个字符，subject 必须小写开头，且不能以句号结尾。
+- Commit body 每行长度必须小于或等于 72 个字符；body 建议全部小写开头，不使用句号结尾。
+- 提交前应先按 `.gitlint` 或 `go-gitlint --msg-file=<file>` 校验复杂 commit message，避免反复触发 hook 失败。
 - 如果工具调用失败，先检查 `Makefile` 是否存在对应 install、setup 或 generate rule；没有规则时再手动处理。
 - 对外公共库放在 `/pkg`。
 - 项目内公共库放在 `/internal/pkg`。
@@ -61,9 +64,9 @@ import . "github.com/smartystreets/goconvey/convey"
 - `make image` 默认从 `build/docker/*` 推导 `IMAGES`；单独验证某个 image 时，使用 `make image IMAGES="<component>"`。
 - 如果 `configs/<component>.yaml` 引用新的 environment variable，必须同步更新 `scripts/install/environment.sh`。
 - 组件环境变量使用大写 component 前缀，例如 `TASKWORKER_RUNTIME_DEBUG_OUTPUT_DIR`、`TASKWORKER_INSECURE_BIND_PORT`。
-- 新增组件后至少运行 `make -n configs`、`make -n image`、`make build`。
+- 新增 backend binary 组件后至少运行 `make -n configs`、`make -n image`、`make build`。
 - 涉及配置模板或 `COMPONENTS` 变更时，还必须运行 `make configs`。
-- 涉及 Go code 时，继续遵守 `make format`、`make lint` 和提交前 `make build` 规则。
+- 涉及 Go code 或 backend binary 时，继续遵守 `make format`、`make lint` 和提交前 `make build` 规则。
 - 推荐运行 `make verify`，一次性检查 `lint`、`test`、`build`。
 
 ## Frontend 目录规则 Frontend Layout
@@ -86,16 +89,24 @@ import . "github.com/smartystreets/goconvey/convey"
 
 ## 修改后验证规则 Verification Rules
 
-- 每次修改 Go code 后，必须运行：
+- 修改 Go/backend code 后，必须运行：
 
 ```bash
 make format
 make lint
+make build
 ```
 
-- 代码提交前必须运行 `make build`，确认程序可以成功编译。
+- 修改 frontend-only code 后，运行对应 frontend 验证，例如：
+
+```bash
+npm run build
+```
+
+- Frontend-only 修改不强制运行 Go 的 `make lint` 和 `make build`。
+- 修改 docs-only 文件不强制运行 `make format`、`make lint` 和 `make build`，但必须检查文档内容和 git 状态。
+- 修改 Docker、compose、Makefile 或 config 时，按影响范围选择验证命令，例如 `docker compose config`、`make -n image`、`make -n frontend.image` 或 `make build`。
 - 修改 error code、generated contract、swagger、proto 或其他生成文件相关代码后，还必须运行对应 generate rule，例如 `make gen` 或项目中明确的生成目标。
-- 文档-only 修改不强制运行 `make format` 和 `make lint`，但必须检查文档内容和 git 状态。
 - 如果验证命令失败，交付结果时必须说明失败命令、失败原因和未完成风险。
 
 ## 接口注释要求 Interface Comment Requirements
