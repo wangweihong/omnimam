@@ -49,6 +49,23 @@
 import . "github.com/smartystreets/goconvey/convey"
 ```
 
+## 新增组件 Makefile 规则 Component Makefile Rules
+
+- 新增运行组件时，入口必须放在 `cmd/<component>/`；`make build` 默认从 `cmd/*` 推导 `BINS`。
+- 单独验证某个 binary 时，使用 `make build BINS="<component>"`。
+- 如果新组件需要通过 `make configs` 生成配置文件，必须更新 `scripts/make-rules/common.mk` 中的 `COMPONENTS`。
+- 新增配置生成组件时，必须同步新增 `configs/<component>.yaml`，并更新 `configs/README.md` 说明用途。
+- `CERTIFICATES` 只加入需要独立 TLS certificate 的组件，例如 `API Server` 或独立对外服务。
+- `Worker`、`CLI`、后台 task process 默认不加入 `CERTIFICATES`，除非实际启用 TLS endpoint。
+- 如果新组件需要 Docker image，必须新增 `build/docker/<component>/Dockerfile.build` 和 `build/docker/<component>/Dockerfile.gobuild`。
+- `make image` 默认从 `build/docker/*` 推导 `IMAGES`；单独验证某个 image 时，使用 `make image IMAGES="<component>"`。
+- 如果 `configs/<component>.yaml` 引用新的 environment variable，必须同步更新 `scripts/install/environment.sh`。
+- 组件环境变量使用大写 component 前缀，例如 `TASKWORKER_RUNTIME_DEBUG_OUTPUT_DIR`、`TASKWORKER_INSECURE_BIND_PORT`。
+- 新增组件后至少运行 `make -n configs`、`make -n image`、`make build`。
+- 涉及配置模板或 `COMPONENTS` 变更时，还必须运行 `make configs`。
+- 涉及 Go code 时，继续遵守 `make format`、`make lint` 和提交前 `make build` 规则。
+- 推荐运行 `make verify`，一次性检查 `lint`、`test`、`build`。
+
 ## Frontend 目录规则 Frontend Layout
 
 - 正式 frontend source code 必须放在 `frontend/`。
