@@ -14,6 +14,20 @@ type Factory interface {
 	OneTimeTokens() OneTimeTokenStore
 	UserOTPs() UserOTPStore
 
+	// assets
+	AssetLibraries() AssetLibraryStore
+	AssetCategories() AssetCategoryStore
+	AssetItems() AssetItemStore
+
+	// prompts
+	PromptLibraries() PromptLibraryStore
+	PromptCategories() PromptCategoryStore
+	PromptItems() PromptItemStore
+
+	// canvases
+	Projects() ProjectStore
+	Canvases() CanvasStore
+
 	EnsureScheme(metaTypes ...any) error
 	Close() error
 }

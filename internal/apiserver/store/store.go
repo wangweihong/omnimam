@@ -62,3 +62,84 @@ type UserOTPStore interface {
 	FirstOrCreate(ctx context.Context, data *iapiserver.UserOTP) (*iapiserver.UserOTP, error)
 	Add(ctx context.Context, data *iapiserver.UserOTP) (*iapiserver.UserOTP, error)
 }
+
+type AssetLibraryStore interface {
+	List(ctx context.Context, req *iapiserver.AssetLibraryListRequest) ([]*iapiserver.AssetLibrary, int64, error)
+	Get(ctx context.Context, id string) (*iapiserver.AssetLibrary, error)
+	Add(ctx context.Context, data *iapiserver.AssetLibrary) (*iapiserver.AssetLibrary, error)
+	Update(ctx context.Context, data *iapiserver.AssetLibrary) (*iapiserver.AssetLibrary, error)
+	Delete(ctx context.Context, id string) error
+}
+
+type AssetCategoryStore interface {
+	List(ctx context.Context, req *iapiserver.AssetCategoryListRequest) ([]*iapiserver.AssetCategory, int64, error)
+	Get(ctx context.Context, id string) (*iapiserver.AssetCategory, error)
+	Add(ctx context.Context, data *iapiserver.AssetCategory) (*iapiserver.AssetCategory, error)
+	Update(ctx context.Context, data *iapiserver.AssetCategory) (*iapiserver.AssetCategory, error)
+	Delete(ctx context.Context, id string, libraryID string) error
+	DeleteByLibraryID(ctx context.Context, libraryID string) error
+}
+
+type AssetItemStore interface {
+	List(ctx context.Context, req *iapiserver.AssetItemListRequest) ([]*iapiserver.AssetItem, int64, error)
+	Get(ctx context.Context, id string) (*iapiserver.AssetItem, error)
+	Add(ctx context.Context, data *iapiserver.AssetItem) (*iapiserver.AssetItem, error)
+	BatchAdd(ctx context.Context, items []*iapiserver.AssetItem) ([]*iapiserver.AssetItem, error)
+	Update(ctx context.Context, data *iapiserver.AssetItem) (*iapiserver.AssetItem, error)
+	Delete(ctx context.Context, id string) error
+	BatchDelete(ctx context.Context, ids []string, libraryID string) (int, error)
+	BatchMove(ctx context.Context, ids []string, targetLibraryID, targetCategoryID string) (int, error)
+	FindByIDs(ctx context.Context, ids []string, libraryID string) ([]*iapiserver.AssetItem, error)
+}
+
+type PromptLibraryStore interface {
+	List(ctx context.Context) ([]*iapiserver.PromptLibrary, error)
+	Get(ctx context.Context, id string) (*iapiserver.PromptLibrary, error)
+	Add(ctx context.Context, data *iapiserver.PromptLibrary) (*iapiserver.PromptLibrary, error)
+	Update(ctx context.Context, data *iapiserver.PromptLibrary) (*iapiserver.PromptLibrary, error)
+	Delete(ctx context.Context, id string) error
+	SetActive(ctx context.Context, id string) error
+	GetActive(ctx context.Context) (*iapiserver.PromptLibrary, error)
+}
+
+type PromptCategoryStore interface {
+	ListByLibrary(ctx context.Context, libraryID string) ([]*iapiserver.PromptCategory, error)
+	Get(ctx context.Context, id string) (*iapiserver.PromptCategory, error)
+	Add(ctx context.Context, data *iapiserver.PromptCategory) (*iapiserver.PromptCategory, error)
+	Update(ctx context.Context, data *iapiserver.PromptCategory) (*iapiserver.PromptCategory, error)
+	Delete(ctx context.Context, id string, libraryID string) error
+	DeleteByLibraryID(ctx context.Context, libraryID string) error
+}
+
+type PromptItemStore interface {
+	ListByLibrary(ctx context.Context, libraryID string) ([]*iapiserver.PromptItem, error)
+	Get(ctx context.Context, id string) (*iapiserver.PromptItem, error)
+	Add(ctx context.Context, data *iapiserver.PromptItem) (*iapiserver.PromptItem, error)
+	Update(ctx context.Context, data *iapiserver.PromptItem) (*iapiserver.PromptItem, error)
+	Delete(ctx context.Context, id string) error
+	BatchDelete(ctx context.Context, ids []string) (int, error)
+	ReassignCategory(ctx context.Context, oldCategoryID, newCategoryID string) error
+}
+
+type ProjectStore interface {
+	List(ctx context.Context) ([]*iapiserver.Project, error)
+	Get(ctx context.Context, id string) (*iapiserver.Project, error)
+	Add(ctx context.Context, data *iapiserver.Project) (*iapiserver.Project, error)
+	Update(ctx context.Context, data *iapiserver.Project) (*iapiserver.Project, error)
+	Delete(ctx context.Context, id string) error
+}
+
+type CanvasStore interface {
+	List(ctx context.Context, includeDeleted bool) ([]*iapiserver.Canvas, error)
+	ListByProject(ctx context.Context, projectID string) ([]*iapiserver.Canvas, error)
+	Get(ctx context.Context, id string) (*iapiserver.Canvas, error)
+	GetAny(ctx context.Context, id string) (*iapiserver.Canvas, error)
+	Add(ctx context.Context, data *iapiserver.Canvas) (*iapiserver.Canvas, error)
+	Update(ctx context.Context, data *iapiserver.Canvas) (*iapiserver.Canvas, error)
+	SoftDelete(ctx context.Context, id string) error
+	Restore(ctx context.Context, id string) error
+	Purge(ctx context.Context, id string) error
+	CountByProject(ctx context.Context, projectID string) (int, error)
+	ReassignProject(ctx context.Context, oldProjectID, newProjectID string) (int, error)
+	CleanupExpiredTrash(ctx context.Context, retentionDays int) error
+}

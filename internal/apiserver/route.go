@@ -4,7 +4,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 
+	"github.com/wangweihong/omnimam/internal/apiserver/controller/v1/asset"
 	"github.com/wangweihong/omnimam/internal/apiserver/controller/v1/authentication"
+	"github.com/wangweihong/omnimam/internal/apiserver/controller/v1/canvas"
+	"github.com/wangweihong/omnimam/internal/apiserver/controller/v1/prompt"
 	"github.com/wangweihong/omnimam/internal/apiserver/controller/v1/setting"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
 	"github.com/wangweihong/omnimam/internal/pkg/code"
@@ -107,5 +110,79 @@ func InstallSettingApis(rg *gin.RouterGroup, storeIns store.Factory) {
 				ssoapp.GET("/sp/list", settingController.ServiceProviderList)
 			}
 		}
+	}
+}
+
+func installAssetApis(rg *gin.RouterGroup, storeIns store.Factory) {
+	assetController := asset.NewController(storeIns)
+
+	assetv1 := rg.Group("/asset-library")
+	{
+		assetv1.GET("/libraries", assetController.ListLibraries)
+		assetv1.POST("/libraries", assetController.CreateLibrary)
+		assetv1.PATCH("/libraries/:library_id", assetController.UpdateLibrary)
+		assetv1.DELETE("/libraries/:library_id", assetController.DeleteLibrary)
+
+		assetv1.GET("/categories", assetController.ListCategories)
+		assetv1.POST("/categories", assetController.CreateCategory)
+		assetv1.PATCH("/categories/:category_id", assetController.UpdateCategory)
+		assetv1.DELETE("/categories/:category_id", assetController.DeleteCategory)
+
+		assetv1.GET("/items", assetController.ListItems)
+		assetv1.POST("/items", assetController.CreateItem)
+		assetv1.POST("/items/batch", assetController.BatchCreateItems)
+		assetv1.PATCH("/items/:item_id", assetController.UpdateItem)
+		assetv1.DELETE("/items/:item_id", assetController.DeleteItem)
+		assetv1.POST("/items/delete", assetController.BatchDeleteItems)
+		assetv1.POST("/items/move", assetController.BatchMoveItems)
+		assetv1.POST("/items/classify", assetController.ClassifyItems)
+	}
+}
+
+func installPromptApis(rg *gin.RouterGroup, storeIns store.Factory) {
+	promptController := prompt.NewController(storeIns)
+
+	promptv1 := rg.Group("/prompt-libraries")
+	{
+		promptv1.GET("", promptController.ListLibraries)
+		promptv1.POST("", promptController.CreateLibrary)
+		promptv1.PATCH("/:library_id", promptController.UpdateLibrary)
+		promptv1.DELETE("/:library_id", promptController.DeleteLibrary)
+
+		promptv1.POST("/items", promptController.CreateItem)
+		promptv1.PATCH("/items/:item_id", promptController.UpdateItem)
+		promptv1.DELETE("/items/:item_id", promptController.DeleteItem)
+		promptv1.POST("/items/delete", promptController.BatchDeleteItems)
+
+		promptv1.POST("/categories", promptController.CreateCategory)
+		promptv1.PATCH("/categories/:category_id", promptController.UpdateCategory)
+		promptv1.DELETE("/categories/:category_id", promptController.DeleteCategory)
+	}
+}
+
+func installCanvasApis(rg *gin.RouterGroup, storeIns store.Factory) {
+	canvasController := canvas.NewController(storeIns)
+
+	canvasv1 := rg.Group("/canvases")
+	{
+		canvasv1.GET("", canvasController.ListCanvases)
+		canvasv1.GET("/trash", canvasController.ListTrash)
+		canvasv1.POST("", canvasController.CreateCanvas)
+		canvasv1.GET("/:canvas_id", canvasController.GetCanvas)
+		canvasv1.GET("/:canvas_id/meta", canvasController.GetCanvasMeta)
+		canvasv1.POST("/:canvas_id/meta", canvasController.UpdateCanvasMeta)
+		canvasv1.PUT("/:canvas_id", canvasController.SaveCanvas)
+		canvasv1.POST("/:canvas_id/touch", canvasController.TouchCanvas)
+		canvasv1.DELETE("/:canvas_id", canvasController.DeleteCanvas)
+		canvasv1.POST("/:canvas_id/restore", canvasController.RestoreCanvas)
+		canvasv1.DELETE("/:canvas_id/purge", canvasController.PurgeCanvas)
+	}
+
+	projectv1 := rg.Group("/projects")
+	{
+		projectv1.GET("", canvasController.ListProjects)
+		projectv1.POST("", canvasController.CreateProject)
+		projectv1.POST("/:project_id", canvasController.UpdateProject)
+		projectv1.DELETE("/:project_id", canvasController.DeleteProject)
 	}
 }

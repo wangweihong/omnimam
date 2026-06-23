@@ -103,6 +103,20 @@ func (c *CompletedExtraConfig) New() error {
 		&iapiserver.User{},
 		&iapiserver.OneTimeToken{},
 		&iapiserver.UserOTP{},
+
+		// assets
+		&iapiserver.AssetLibrary{},
+		&iapiserver.AssetCategory{},
+		&iapiserver.AssetItem{},
+
+		// prompts
+		&iapiserver.PromptLibrary{},
+		&iapiserver.PromptCategory{},
+		&iapiserver.PromptItem{},
+
+		// canvases
+		&iapiserver.Project{},
+		&iapiserver.Canvas{},
 	); err != nil {
 		return errors.Wrap(err, "EnsureScheme fail")
 	}

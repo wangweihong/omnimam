@@ -97,3 +97,38 @@ func (ds *datastore) OneTimeTokens() store.OneTimeTokenStore {
 func (ds *datastore) UserOTPs() store.UserOTPStore {
 	return newUserOTP(ds)
 }
+
+/* ------ asset ------- */
+func (ds *datastore) AssetLibraries() store.AssetLibraryStore {
+	return newAssetLibrary(ds)
+}
+
+func (ds *datastore) AssetCategories() store.AssetCategoryStore {
+	return newAssetCategory(ds)
+}
+
+func (ds *datastore) AssetItems() store.AssetItemStore {
+	return newAssetItem(ds)
+}
+
+/* ------ prompt ------- */
+func (ds *datastore) PromptLibraries() store.PromptLibraryStore {
+	return newPromptLibrary(ds)
+}
+
+func (ds *datastore) PromptCategories() store.PromptCategoryStore {
+	return newPromptCategory(ds)
+}
+
+func (ds *datastore) PromptItems() store.PromptItemStore {
+	return newPromptItem(ds)
+}
+
+/* ------ canvas ------- */
+func (ds *datastore) Projects() store.ProjectStore {
+	return newProject(ds)
+}
+
+func (ds *datastore) Canvases() store.CanvasStore {
+	return newCanvas(ds)
+}

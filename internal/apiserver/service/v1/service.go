@@ -1,7 +1,10 @@
 package v1
 
 import (
+	"github.com/wangweihong/omnimam/internal/apiserver/service/v1/asset"
+	"github.com/wangweihong/omnimam/internal/apiserver/service/v1/canvas"
 	"github.com/wangweihong/omnimam/internal/apiserver/service/v1/identity"
+	"github.com/wangweihong/omnimam/internal/apiserver/service/v1/prompt"
 	"github.com/wangweihong/omnimam/internal/apiserver/service/v1/setting"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
 )
@@ -10,6 +13,9 @@ import (
 type Service interface {
 	Settings() setting.SettingSrv
 	Identities() identity.IdentitySrv
+	Assets() asset.AssetSrv
+	Prompts() prompt.PromptSrv
+	Canvases() canvas.CanvasSrv
 }
 
 type service struct {
@@ -23,12 +29,22 @@ func NewService(store store.Factory) Service {
 	}
 }
 
-
-
 func (s *service) Settings() setting.SettingSrv {
 	return setting.NewService(s.store)
 }
 
 func (s *service) Identities() identity.IdentitySrv {
 	return identity.NewService(s.store)
+}
+
+func (s *service) Assets() asset.AssetSrv {
+	return asset.NewService(s.store)
+}
+
+func (s *service) Prompts() prompt.PromptSrv {
+	return prompt.NewService(s.store)
+}
+
+func (s *service) Canvases() canvas.CanvasSrv {
+	return canvas.NewService(s.store)
 }
