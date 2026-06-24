@@ -42,6 +42,29 @@ export interface ProviderModel {
   default_params?: Record<string, unknown>;
 }
 
+export interface ProviderTestResponse {
+  ok: boolean;
+  message: string;
+  latency_ms: number;
+}
+
+export interface ProviderModelSyncResponse {
+  models: ProviderModel[];
+  created: number;
+  updated: number;
+  skipped: number;
+}
+
+export interface SystemLLMConfig {
+  id?: string;
+  name?: string;
+  purpose: string;
+  provider_id: string;
+  model_id?: string;
+  model?: string;
+  enabled: boolean;
+}
+
 export interface AssetThumbnail {
   id: string;
   asset_id: string;
@@ -242,6 +265,10 @@ export interface ProviderListResponse extends ListRet {
 
 export interface ProviderModelListResponse extends ListRet {
   models: ProviderModel[];
+}
+
+export interface SystemLLMConfigListResponse {
+  configs: SystemLLMConfig[];
 }
 
 export interface AssetListResponse extends ListRet {

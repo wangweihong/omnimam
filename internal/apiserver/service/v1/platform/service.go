@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"image"
 	_ "image/gif"
@@ -36,6 +37,8 @@ type PlatformSrv interface {
 	ProviderList(ctx context.Context, req *iapiserver.ProviderListRequest) (*iapiserver.ProviderListResponse, error)
 	ProviderCreate(ctx context.Context, req *iapiserver.ProviderCreateRequest) (*iapiserver.Provider, error)
 	ProviderUpdate(ctx context.Context, req *iapiserver.ProviderUpdateRequest) (*iapiserver.Provider, error)
+	// ProviderTest checks OpenAI-compatible provider reachability using saved data plus optional overrides.
+	ProviderTest(ctx context.Context, req *iapiserver.ProviderTestRequest) (*iapiserver.ProviderTestResponse, error)
 	ProviderModelList(
 		ctx context.Context,
 		req *iapiserver.ProviderModelListRequest,
@@ -48,6 +51,11 @@ type PlatformSrv interface {
 		ctx context.Context,
 		req *iapiserver.ProviderModelUpdateRequest,
 	) (*iapiserver.ProviderModel, error)
+	// ProviderModelSync imports remote model metadata for one provider without invoking generation.
+	ProviderModelSync(
+		ctx context.Context,
+		req *iapiserver.ProviderModelSyncRequest,
+	) (*iapiserver.ProviderModelSyncResponse, error)
 	SystemLLMConfigList(ctx context.Context) (*iapiserver.SystemLLMConfigListResponse, error)
 	SystemLLMConfigUpsert(
 		ctx context.Context,
@@ -79,7 +87,12 @@ type PlatformSrv interface {
 		req *iapiserver.AssetChunkUploadInitRequest,
 	) (*iapiserver.AssetChunkUploadInitResponse, error)
 	// AssetChunkUploadPart writes one resumable upload chunk. The final asset is not created until complete.
-	AssetChunkUploadPart(ctx context.Context, checksum string, index int, body io.Reader) (*iapiserver.AssetChunkUploadPartResponse, error)
+	AssetChunkUploadPart(
+		ctx context.Context,
+		checksum string,
+		index int,
+		body io.Reader,
+	) (*iapiserver.AssetChunkUploadPartResponse, error)
 	// AssetChunkUploadComplete merges chunks, validates final checksum, creates the asset, and removes temp files.
 	AssetChunkUploadComplete(
 		ctx context.Context,
@@ -122,7 +135,11 @@ type PlatformSrv interface {
 	CanvasAssetDownloadZip(ctx context.Context, req *iapiserver.CanvasAssetDownloadRequest, dst io.Writer) error
 	// CanvasNodeRun creates a task for one canvas node execution.
 	// Provider-specific work is handled later by workers through task input.
-	CanvasNodeRun(ctx context.Context, canvasID, nodeID string, req *iapiserver.CanvasNodeRunRequest) (*iapiserver.CanvasRunResponse, error)
+	CanvasNodeRun(
+		ctx context.Context,
+		canvasID, nodeID string,
+		req *iapiserver.CanvasNodeRunRequest,
+	) (*iapiserver.CanvasRunResponse, error)
 }
 
 type platformService struct {
@@ -204,6 +221,9 @@ func (s *platformService) ProviderList(
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+	for i, item := range items {
+		items[i] = sanitizeProvider(item)
+	}
 	return &iapiserver.ProviderListResponse{ListRet: imachinery.ListRet{Total: total}, Providers: items}, nil
 }
 
@@ -229,7 +249,11 @@ func (s *platformService) ProviderCreate(
 	if provider.Type == iapiserver.ProviderTypeDeepSeek && provider.BaseURL == "" {
 		provider.BaseURL = "https://api.deepseek.com"
 	}
-	return s.store.Providers().Add(ctx, provider)
+	created, err := s.store.Providers().Add(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	return sanitizeProvider(created), nil
 }
 
 func (s *platformService) ProviderUpdate(
@@ -258,7 +282,30 @@ func (s *platformService) ProviderUpdate(
 	if req.CredentialRef != nil {
 		provider.CredentialRef = *req.CredentialRef
 	}
-	return s.store.Providers().Update(ctx, provider)
+	updated, err := s.store.Providers().Update(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	return sanitizeProvider(updated), nil
+}
+
+func (s *platformService) ProviderTest(
+	ctx context.Context,
+	req *iapiserver.ProviderTestRequest,
+) (*iapiserver.ProviderTestResponse, error) {
+	provider, err := s.providerWithOverrides(ctx, req.ID, req.BaseURL, req.AuthType, req.CredentialRef)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	started := time.Now()
+	if _, err := fetchOpenAICompatibleModels(ctx, provider); err != nil {
+		return nil, err
+	}
+	return &iapiserver.ProviderTestResponse{
+		OK:        true,
+		Message:   "provider connection ok",
+		LatencyMS: time.Since(started).Milliseconds(),
+	}, nil
 }
 
 func (s *platformService) ProviderModelList(
@@ -317,6 +364,72 @@ func (s *platformService) ProviderModelUpdate(
 	return s.store.ProviderModels().Update(ctx, model)
 }
 
+func (s *platformService) ProviderModelSync(
+	ctx context.Context,
+	req *iapiserver.ProviderModelSyncRequest,
+) (*iapiserver.ProviderModelSyncResponse, error) {
+	provider, err := s.store.Providers().Get(ctx, req.ProviderID)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	remoteModels, err := fetchOpenAICompatibleModels(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	existingResp, err := s.ProviderModelList(ctx, &iapiserver.ProviderModelListRequest{ProviderID: provider.ID})
+	if err != nil {
+		return nil, err
+	}
+	existingByModel := map[string]*iapiserver.ProviderModel{}
+	for _, item := range existingResp.Models {
+		existingByModel[item.Model] = item
+	}
+	created := 0
+	updated := 0
+	skipped := 0
+	for _, remote := range remoteModels {
+		if remote == "" {
+			continue
+		}
+		if existing := existingByModel[remote]; existing != nil {
+			nextCaps := appendCapability(existing.Capabilities, iapiserver.CapabilityLLMChat)
+			if existing.Name == remote && stringSliceEqual(existing.Capabilities, nextCaps) {
+				skipped++
+				continue
+			}
+			existing.Name = remote
+			existing.Capabilities = nextCaps
+			if _, err := s.store.ProviderModels().Update(ctx, existing); err != nil {
+				return nil, errors.WithStack(err)
+			}
+			updated++
+			continue
+		}
+		model := &iapiserver.ProviderModel{
+			ProviderID:    provider.ID,
+			Model:         remote,
+			Capabilities:  []string{iapiserver.CapabilityLLMChat},
+			Enabled:       true,
+			DefaultParams: map[string]any{},
+		}
+		model.Name = remote
+		if _, err := s.store.ProviderModels().Add(ctx, model); err != nil {
+			return nil, errors.WithStack(err)
+		}
+		created++
+	}
+	models, err := s.ProviderModelList(ctx, &iapiserver.ProviderModelListRequest{ProviderID: provider.ID})
+	if err != nil {
+		return nil, err
+	}
+	return &iapiserver.ProviderModelSyncResponse{
+		Models:  models.Models,
+		Created: created,
+		Updated: updated,
+		Skipped: skipped,
+	}, nil
+}
+
 func (s *platformService) SystemLLMConfigList(ctx context.Context) (*iapiserver.SystemLLMConfigListResponse, error) {
 	configs, err := s.store.SystemLLMConfigs().List(ctx)
 	if err != nil {
@@ -347,6 +460,146 @@ func (s *platformService) SystemLLMConfigUpsert(
 		}
 	}
 	return s.SystemLLMConfigList(ctx)
+}
+
+func sanitizeProvider(provider *iapiserver.Provider) *iapiserver.Provider {
+	if provider == nil {
+		return nil
+	}
+	ret := *provider
+	if strings.TrimSpace(ret.CredentialRef) != "" {
+		ret.CredentialRef = "configured"
+	}
+	return &ret
+}
+
+func (s *platformService) providerWithOverrides(
+	ctx context.Context,
+	id string,
+	baseURL string,
+	authType string,
+	credentialRef string,
+) (*iapiserver.Provider, error) {
+	provider, err := s.store.Providers().Get(ctx, id)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	ret := *provider
+	if strings.TrimSpace(baseURL) != "" {
+		ret.BaseURL = baseURL
+	}
+	if strings.TrimSpace(authType) != "" {
+		ret.AuthType = authType
+	}
+	if strings.TrimSpace(credentialRef) != "" && credentialRef != "configured" {
+		ret.CredentialRef = credentialRef
+	}
+	return &ret, nil
+}
+
+func fetchOpenAICompatibleModels(ctx context.Context, provider *iapiserver.Provider) ([]string, error) {
+	switch provider.Type {
+	case iapiserver.ProviderTypeDeepSeek, iapiserver.ProviderTypeOpenAICompatible:
+	default:
+		return nil, errors.NewStatusF(code.ErrProviderUnsupported, "provider type %s is unsupported", provider.Type)
+	}
+	endpoint := openAICompatibleEndpoint(provider.BaseURL, "/models")
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, errors.WrapStatus(err, code.ErrHTTPClientGenerateError)
+	}
+	if apiKey := firstProviderAPIKey(provider.CredentialRef); apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, errors.WrapStatus(err, code.ErrProviderUnavailable)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.WrapStatus(err, code.ErrProviderResponseParseError)
+	}
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return nil, errors.NewStatusF(code.ErrProviderUnauthorized, "provider authentication failed")
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, errors.NewStatusF(
+			code.ErrProviderUnavailable,
+			"provider request failed with status %d",
+			resp.StatusCode,
+		)
+	}
+	var decoded struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &decoded); err != nil {
+		return nil, errors.WrapStatus(err, code.ErrProviderResponseParseError)
+	}
+	models := make([]string, 0, len(decoded.Data))
+	for _, item := range decoded.Data {
+		if strings.TrimSpace(item.ID) != "" {
+			models = append(models, strings.TrimSpace(item.ID))
+		}
+	}
+	if len(models) == 0 {
+		return nil, errors.NewStatusF(code.ErrProviderResponseParseError, "provider returned no models")
+	}
+	sort.Strings(models)
+	return models, nil
+}
+
+func openAICompatibleEndpoint(baseURL string, path string) string {
+	base := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if base == "" {
+		base = "https://api.openai.com"
+	}
+	path = "/" + strings.TrimLeft(path, "/")
+	if strings.HasSuffix(base, "/v1") {
+		return base + path
+	}
+	return base + "/v1" + path
+}
+
+func firstProviderAPIKey(credentialRef string) string {
+	ref := strings.TrimSpace(credentialRef)
+	if strings.HasPrefix(ref, "env:") {
+		return os.Getenv(strings.TrimPrefix(ref, "env:"))
+	}
+	for _, item := range strings.Split(ref, ",") {
+		if key := strings.TrimSpace(item); key != "" {
+			return key
+		}
+	}
+	return ""
+}
+
+func appendCapability(capabilities []string, capability string) []string {
+	for _, item := range capabilities {
+		if item == capability {
+			return capabilities
+		}
+	}
+	return append(capabilities, capability)
+}
+
+func stringSliceEqual(left []string, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	leftCopy := append([]string(nil), left...)
+	rightCopy := append([]string(nil), right...)
+	sort.Strings(leftCopy)
+	sort.Strings(rightCopy)
+	for i := range leftCopy {
+		if leftCopy[i] != rightCopy[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *platformService) StorageBackendList(

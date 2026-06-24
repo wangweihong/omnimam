@@ -19,19 +19,19 @@ var (
 type Options struct {
 	Name string `json:"name"`
 
-	GenericServerRunOptions *genericoptions.ServerRunOptions       `json:"server"   mapstructure:"server"`
-	Log                     *log.Options                           `json:"log"      mapstructure:"log"`
-	FeatureOptions          *genericoptions.FeatureOptions         `json:"feature"  mapstructure:"feature"`
-	InsecureServing         *genericoptions.InsecureServingOptions `json:"insecure" mapstructure:"insecure"`
-	SecureServing           *genericoptions.SecureServingOptions   `json:"secure"   mapstructure:"secure"`
+	GenericServerRunOptions *genericoptions.ServerRunOptions       `json:"server"       mapstructure:"server"`
+	Log                     *log.Options                           `json:"log"          mapstructure:"log"`
+	FeatureOptions          *genericoptions.FeatureOptions         `json:"feature"      mapstructure:"feature"`
+	InsecureServing         *genericoptions.InsecureServingOptions `json:"insecure"     mapstructure:"insecure"`
+	SecureServing           *genericoptions.SecureServingOptions   `json:"secure"       mapstructure:"secure"`
 	//PostgresSQLOptions      *genericoptions.PostgresSQLOptions     `json:"postgres" mapstructure:"postgres"`
 	DatabaseOptions    *genericoptions.DatabaseOptions `json:"database"     mapstructure:"database"`
 	AssetUploadOptions *AssetUploadOptions             `json:"asset-upload" mapstructure:"asset-upload"`
 }
 
 type AssetUploadOptions struct {
-	ChunkTempDir      string `json:"chunk-temp-dir"       mapstructure:"chunk-temp-dir"`
-	ChunkCleanupHours int    `json:"chunk-cleanup-hours"  mapstructure:"chunk-cleanup-hours"`
+	ChunkTempDir      string `json:"chunk-temp-dir"      mapstructure:"chunk-temp-dir"`
+	ChunkCleanupHours int    `json:"chunk-cleanup-hours" mapstructure:"chunk-cleanup-hours"`
 }
 
 func NewAssetUploadOptions() *AssetUploadOptions {

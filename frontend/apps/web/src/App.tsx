@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
-import { Archive, Bot, CheckCircle2, Database, LayoutDashboard, Network, PanelsTopLeft, RefreshCw } from "lucide-react";
+import { Archive, CheckCircle2, LayoutDashboard, Network, PanelsTopLeft, RefreshCw, Settings } from "lucide-react";
 import { getMe, hasPermission, type MeResponse } from "@omnimam/shared";
 import { ApiErrorView } from "./components/ApiErrorView";
 import { Dashboard } from "./pages/Dashboard";
@@ -9,13 +9,14 @@ import { Providers } from "./pages/Providers";
 import { Tasks } from "./pages/Tasks";
 import { Canvases } from "./pages/Canvases";
 import { CanvasEditor } from "./pages/CanvasEditor";
+import { SettingsHome } from "./pages/SettingsHome";
 
 const navItems = [
   { path: "/dashboard", label: "工作台", icon: LayoutDashboard, permission: "" },
   { path: "/assets", label: "资产", icon: Archive, permission: "asset.read" },
-  { path: "/providers", label: "模型服务", icon: Bot, permission: "provider.read" },
   { path: "/tasks", label: "任务", icon: Network, permission: "task.read" },
-  { path: "/canvases", label: "画布", icon: PanelsTopLeft, permission: "canvas.read" }
+  { path: "/canvases", label: "画布", icon: PanelsTopLeft, permission: "canvas.read" },
+  { path: "/settings", label: "设置", icon: Settings, permission: "provider.manage" }
 ];
 
 export function App() {
@@ -87,6 +88,7 @@ export function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard me={me} />} />
           <Route path="/assets" element={<Assets canWrite={hasPermission(me, "asset.create")} />} />
+          <Route path="/settings" element={<SettingsHome />} />
           <Route path="/providers" element={<Providers canWrite={hasPermission(me, "provider.manage")} />} />
           <Route path="/tasks" element={<Tasks canWrite={hasPermission(me, "task.cancel")} />} />
           <Route path="/canvases" element={<Canvases />} />

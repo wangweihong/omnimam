@@ -26,6 +26,10 @@ import type {
   MeResponse,
   ProviderListResponse,
   ProviderModelListResponse,
+  ProviderModelSyncResponse,
+  ProviderTestResponse,
+  SystemLLMConfig,
+  SystemLLMConfigListResponse,
   TaskListResponse
 } from "./types";
 
@@ -41,12 +45,36 @@ export function createProvider(input: Record<string, unknown>) {
   return apiClient.post("/providers", input);
 }
 
+export function updateProvider(providerID: string, input: Record<string, unknown>) {
+  return apiClient.patch(`/providers/${providerID}`, input);
+}
+
+export function testProvider(providerID: string, input: Record<string, unknown>) {
+  return apiClient.post<ProviderTestResponse>(`/providers/${providerID}/test`, input);
+}
+
 export function listProviderModels(providerID: string) {
   return apiClient.get<ProviderModelListResponse>(`/providers/${providerID}/models`);
 }
 
 export function createProviderModel(providerID: string, input: Record<string, unknown>) {
   return apiClient.post(`/providers/${providerID}/models`, input);
+}
+
+export function updateProviderModel(providerID: string, modelID: string, input: Record<string, unknown>) {
+  return apiClient.patch(`/providers/${providerID}/models/${modelID}`, input);
+}
+
+export function syncProviderModels(providerID: string) {
+  return apiClient.post<ProviderModelSyncResponse>(`/providers/${providerID}/models/sync`);
+}
+
+export function getSystemLLMConfig() {
+  return apiClient.get<SystemLLMConfigListResponse>("/system-llm-config");
+}
+
+export function putSystemLLMConfig(configs: SystemLLMConfig[]) {
+  return apiClient.put<SystemLLMConfigListResponse>("/system-llm-config", { configs });
 }
 
 export function listAssets(query: Record<string, string | number | boolean | undefined> = {}) {

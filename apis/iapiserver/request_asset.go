@@ -332,7 +332,7 @@ type (
 
 	CanvasImportRequest struct {
 		Project string              `json:"project"`
-		Canvas  CanvasExportPayload `json:"canvas" binding:"required"`
+		Canvas  CanvasExportPayload `json:"canvas"  binding:"required"`
 	}
 
 	CanvasImportResponse struct {
@@ -404,7 +404,7 @@ type (
 	CanvasAssetRegisterOutputRequest struct {
 		CanvasID string         `json:"canvas_id"`
 		NodeID   string         `json:"node_id"`
-		AssetID  string         `json:"asset_id" binding:"required"`
+		AssetID  string         `json:"asset_id"  binding:"required"`
 		Metadata map[string]any `json:"metadata"`
 	}
 

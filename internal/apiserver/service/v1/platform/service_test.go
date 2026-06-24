@@ -1,10 +1,16 @@
 package platform
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/wangweihong/gotoolbox/pkg/errors"
 
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/omnimam/apis/imachinery"
+	"github.com/wangweihong/omnimam/internal/pkg/code"
 )
 
 func TestParseNaturalAssetQueryImageSize(t *testing.T) {
@@ -61,5 +67,49 @@ func TestLocalObjectPathRejectsEscape(t *testing.T) {
 	}
 	if _, err := localObjectPath(backend, "assets/file.txt"); err != nil {
 		t.Fatalf("expected safe path: %v", err)
+	}
+}
+
+func TestFetchOpenAICompatibleModels(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/models" {
+			t.Fatalf("path = %s", r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer secret" {
+			t.Fatalf("authorization = %q", got)
+		}
+		_, _ = w.Write([]byte(`{"data":[{"id":"z-model"},{"id":"a-model"}]}`))
+	}))
+	defer server.Close()
+
+	models, err := fetchOpenAICompatibleModels(context.Background(), &iapiserver.Provider{
+		Type:          iapiserver.ProviderTypeOpenAICompatible,
+		BaseURL:       server.URL,
+		CredentialRef: "secret,backup",
+	})
+	if err != nil {
+		t.Fatalf("fetch models: %v", err)
+	}
+	if len(models) != 2 || models[0] != "a-model" || models[1] != "z-model" {
+		t.Fatalf("models = %#v", models)
+	}
+}
+
+func TestFetchOpenAICompatibleModelsUnauthorized(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer server.Close()
+
+	_, err := fetchOpenAICompatibleModels(context.Background(), &iapiserver.Provider{
+		Type:    iapiserver.ProviderTypeOpenAICompatible,
+		BaseURL: server.URL,
+	})
+	if err == nil {
+		t.Fatal("expected unauthorized error")
+	}
+	if status := errors.ToStatus(err); status.Code != code.ErrProviderUnauthorized ||
+		status.HTTPStatus != http.StatusUnauthorized {
+		t.Fatalf("status = %#v", status)
 	}
 }

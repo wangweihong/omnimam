@@ -51,8 +51,8 @@ var errCodeDocPrefix = `# 错误码
 const (
 	commentKeyExtPrefix = "@"
 	commentKeyHTTP      = "HTTP"
-	commentKeyDescCN    = "MessageCN"
-	commentKeyDescEN    = "MessageEN"
+	commentKeyDescCN    = "CN"
+	commentKeyDescEN    = "EN"
 )
 
 var (

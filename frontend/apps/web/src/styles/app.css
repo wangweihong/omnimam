@@ -395,6 +395,36 @@ select {
   margin-top: 4px;
 }
 
+.settings-home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.settings-entry-card {
+  min-height: 112px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.settings-entry-card strong,
+.settings-entry-card small {
+  display: block;
+}
+
+.settings-entry-card small {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
 .two-col,
 .split {
   display: grid;
@@ -920,6 +950,192 @@ select {
   display: grid;
   gap: 8px;
   margin-top: 16px;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 190px minmax(260px, 320px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.settings-nav {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.settings-nav button {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.settings-nav button.selected {
+  border-color: var(--border);
+  background: var(--panel-soft);
+}
+
+.provider-list-panel,
+.provider-detail-panel,
+.default-model-panel {
+  min-height: 560px;
+}
+
+.provider-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  margin-bottom: 14px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.provider-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+}
+
+.provider-detail-head,
+.provider-model-head,
+.default-model-control,
+.form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.provider-detail-head {
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.provider-detail-head h2,
+.provider-model-head h2 {
+  margin: 0;
+}
+
+.provider-detail-head small {
+  color: var(--muted);
+}
+
+.toggle {
+  min-width: 54px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.toggle.on {
+  border-color: var(--good);
+  background: #ecfdf3;
+  color: var(--good);
+}
+
+.settings-form {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.settings-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--text);
+}
+
+.settings-form label > span {
+  font-weight: 700;
+}
+
+.settings-form input,
+.settings-form select,
+.default-model-control select,
+.inline-form input {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #fff;
+}
+
+.settings-form small {
+  color: var(--muted);
+}
+
+.inline-input,
+.inline-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.inline-input input,
+.inline-form input {
+  flex: 1;
+  min-width: 0;
+}
+
+.model-list {
+  margin-top: 12px;
+}
+
+.capability-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.default-model-panel {
+  grid-column: span 2;
+}
+
+.default-model-list {
+  display: grid;
+  gap: 16px;
+}
+
+.default-model-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.default-model-title {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.default-model-title small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.default-model-control select {
+  flex: 1;
+  min-width: 0;
 }
 
 .table {
@@ -2266,8 +2482,20 @@ select {
 
   .metric-grid,
   .two-col,
-  .split {
+  .split,
+  .settings-layout {
     grid-template-columns: 1fr;
+  }
+
+  .default-model-panel {
+    grid-column: auto;
+  }
+
+  .inline-input,
+  .inline-form,
+  .default-model-control {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .page-header {

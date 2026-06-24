@@ -552,7 +552,11 @@ func (s *canvasService) CanvasWorkflowPackageImport(
 	id string,
 	req *iapiserver.CanvasWorkflowPackageImportRequest,
 ) (*iapiserver.CanvasWorkflowPackageImportResponse, error) {
-	imported, err := s.CanvasWorkflowImport(ctx, id, &iapiserver.CanvasWorkflowImportRequest{Workflow: req.Package.Workflow})
+	imported, err := s.CanvasWorkflowImport(
+		ctx,
+		id,
+		&iapiserver.CanvasWorkflowImportRequest{Workflow: req.Package.Workflow},
+	)
 	if err != nil {
 		return nil, err
 	}

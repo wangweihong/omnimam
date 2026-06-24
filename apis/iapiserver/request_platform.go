@@ -51,6 +51,21 @@ type (
 		CredentialRef *string `json:"credential_ref"`
 	}
 
+	// ProviderTestRequest tests a provider connection with optional unsaved form overrides.
+	// It only validates metadata/API reachability and does not persist credentials or create tasks.
+	ProviderTestRequest struct {
+		ID            string `json:"id"`
+		BaseURL       string `json:"base_url"`
+		AuthType      string `json:"auth_type"`
+		CredentialRef string `json:"credential_ref"`
+	}
+
+	ProviderTestResponse struct {
+		OK        bool   `json:"ok"`
+		Message   string `json:"message"`
+		LatencyMS int64  `json:"latency_ms"`
+	}
+
 	ProviderModelListRequest struct {
 		imachinery.BasicQueryParam
 		ProviderID string `json:"provider_id" form:"provider_id"`
@@ -80,6 +95,19 @@ type (
 		Capabilities  *[]string       `json:"capabilities"`
 		Enabled       *bool           `json:"enabled"`
 		DefaultParams *map[string]any `json:"default_params"`
+	}
+
+	// ProviderModelSyncRequest imports remote OpenAI-compatible model metadata into ProviderModel rows.
+	// It creates or updates model metadata only; it never invokes a model generation task.
+	ProviderModelSyncRequest struct {
+		ProviderID string `json:"provider_id"`
+	}
+
+	ProviderModelSyncResponse struct {
+		Models  []*ProviderModel `json:"models"`
+		Created int              `json:"created"`
+		Updated int              `json:"updated"`
+		Skipped int              `json:"skipped"`
 	}
 )
 

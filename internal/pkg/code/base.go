@@ -152,6 +152,26 @@ const (
 	// @CN  生成HTTP客户端失败
 	// @EN  Generate HTTP client error.
 	ErrHTTPClientGenerateError
+
+	// @HTTP 401
+	// @CN  模型服务认证失败
+	// @EN  Provider authentication failed.
+	ErrProviderUnauthorized
+
+	// @HTTP 400
+	// @CN  模型服务协议不支持
+	// @EN  Provider protocol is unsupported.
+	ErrProviderUnsupported
+
+	// @HTTP 500
+	// @CN  模型服务不可用
+	// @EN  Provider service is unavailable.
+	ErrProviderUnavailable
+
+	// @HTTP 500
+	// @CN  模型服务响应解析失败
+	// @EN  Provider response parse failed.
+	ErrProviderResponseParseError
 )
 
 // common: gRPC  server error.

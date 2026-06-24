@@ -51,6 +51,18 @@ func (pc *PlatformController) UpdateProvider(c *gin.Context) {
 	core.WriteResponse(c, err, ret)
 }
 
+// TestProvider checks a provider endpoint with optional unsaved API settings.
+// It returns only connection metadata and never persists credentials or invokes async tasks.
+func (pc *PlatformController) TestProvider(c *gin.Context) {
+	req := &iapiserver.ProviderTestRequest{ID: c.Param("provider_id")}
+	core.Run(c, req, func(r *iapiserver.ProviderTestRequest) (any, error) {
+		if r.ID == "" {
+			r.ID = c.Param("provider_id")
+		}
+		return pc.srv.Platforms().ProviderTest(c, r)
+	})
+}
+
 func (pc *PlatformController) ListProviderModels(c *gin.Context) {
 	req := &iapiserver.ProviderModelListRequest{ProviderID: c.Param("provider_id")}
 	core.Run(c, req, func(r *iapiserver.ProviderModelListRequest) (any, error) {
@@ -82,6 +94,18 @@ func (pc *PlatformController) UpdateProviderModel(c *gin.Context) {
 	}
 	ret, err := pc.srv.Platforms().ProviderModelUpdate(c, req)
 	core.WriteResponse(c, err, ret)
+}
+
+// SyncProviderModels imports remote OpenAI-compatible model metadata for one provider.
+// It updates provider model metadata only and does not return raw provider credentials.
+func (pc *PlatformController) SyncProviderModels(c *gin.Context) {
+	req := &iapiserver.ProviderModelSyncRequest{ProviderID: c.Param("provider_id")}
+	core.Run(c, req, func(r *iapiserver.ProviderModelSyncRequest) (any, error) {
+		if r.ProviderID == "" {
+			r.ProviderID = c.Param("provider_id")
+		}
+		return pc.srv.Platforms().ProviderModelSync(c, r)
+	})
 }
 
 func (pc *PlatformController) GetSystemLLMConfig(c *gin.Context) {
@@ -140,9 +164,13 @@ func (pc *PlatformController) UploadAsset(c *gin.Context) {
 
 // InitAssetChunkUpload prepares a resumable upload under a checksum-scoped temp directory.
 func (pc *PlatformController) InitAssetChunkUpload(c *gin.Context) {
-	core.Run(c, &iapiserver.AssetChunkUploadInitRequest{}, func(r *iapiserver.AssetChunkUploadInitRequest) (any, error) {
-		return pc.srv.Platforms().AssetChunkUploadInit(c, r)
-	})
+	core.Run(
+		c,
+		&iapiserver.AssetChunkUploadInitRequest{},
+		func(r *iapiserver.AssetChunkUploadInitRequest) (any, error) {
+			return pc.srv.Platforms().AssetChunkUploadInit(c, r)
+		},
+	)
 }
 
 // UploadAssetChunk writes one chunk. It does not create an asset until complete is called.
@@ -317,9 +345,13 @@ func (pc *PlatformController) DownloadCanvasAssets(c *gin.Context) {
 // RegisterCanvasOutput records an existing asset as a canvas output reference.
 // It returns metadata only and creates an async audit task.
 func (pc *PlatformController) RegisterCanvasOutput(c *gin.Context) {
-	core.Run(c, &iapiserver.CanvasAssetRegisterOutputRequest{}, func(r *iapiserver.CanvasAssetRegisterOutputRequest) (any, error) {
-		return pc.srv.Platforms().CanvasAssetRegisterOutput(c, r)
-	})
+	core.Run(
+		c,
+		&iapiserver.CanvasAssetRegisterOutputRequest{},
+		func(r *iapiserver.CanvasAssetRegisterOutputRequest) (any, error) {
+			return pc.srv.Platforms().CanvasAssetRegisterOutput(c, r)
+		},
+	)
 }
 
 // RunCanvasNode creates a task for one canvas node execution.
