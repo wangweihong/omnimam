@@ -916,7 +916,7 @@ export function CanvasEditor() {
   }
 
   function onBoardPointerDown(event: PointerEvent<HTMLDivElement>) {
-    if ((event.target as HTMLElement).closest(".canvas-node,.canvas-create-menu,.canvas-node-menu,.canvas-minimap")) return;
+    if ((event.target as HTMLElement).closest(".canvas-node,.canvas-create-menu,.canvas-node-menu,.canvas-minimap,.canvas-selection-hub")) return;
     if (event.button !== 0 && event.button !== 1) return;
     const world = screenToWorld(event.clientX, event.clientY);
     lastMouseWorldRef.current = world;
@@ -1822,6 +1822,8 @@ export function CanvasEditor() {
         {selectedBounds && (
           <div
             className="canvas-selection-hub"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
             style={{
               left: selectedBounds.x * viewport.scale + viewport.x,
               top: selectedBounds.y * viewport.scale + viewport.y - 46

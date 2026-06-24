@@ -88,10 +88,10 @@ import . "github.com/smartystreets/goconvey/convey"
 - Provider、Storage、external API gateway、local model service 等外部调用失败时，不能统一吞成 `500`；需要按失败类型映射为合适的 error code 和 HTTP status，例如认证失败、权限不足、资源不存在、请求超时、上游不可用、响应解析失败。
 
 ## 修改后验证规则 Verification Rules
-- 只有在准备执行 `git commit` 前，才执行提交前专项验证。
-- 日常修改 frontend/backend code 后，不强制运行 `make compose`。
-- 如果提交包含 frontend code、backend code、Docker、compose 或 frontend/backend 联动改动，提交前必须运行 `make compose` 并确认相关功能正常。
-- 如果提交包含 Go/backend code 或 backend binary 相关改动，提交前必须运行 `go test ./...` 或项目约定的最小相关测试。
+- 每次修改 frontend code、backend code、Docker、compose、Makefile 或 config 后，必须运行 `make compose`，重建 backend/frontend image 并启动整套服务。
+- `make compose` 成功后，必须按改动范围做 smoke check，例如访问 frontend 页面、调用相关 `/api/v1` endpoint、查看容器状态或日志。
+- 如果修改 Go/backend code 或 backend binary 相关逻辑，还必须运行 `go test ./...` 或项目约定的最小相关测试。
+- 如果用户明确要求本轮不要执行 `make compose`，必须在交付结果中说明未执行以及对应风险。
 - Frontend-only 修改不强制运行 Go 的 `make format`、`make lint`、`go test` 和 `make build`。
 - 修改 docs-only 文件不强制运行 `make format`、`make lint`、`go test`、`make build`，但必须检查文档内容和 git 状态。
 - 修改 error code、generated contract、swagger、proto 或其他生成文件相关代码后，还必须运行对应 generate rule，例如 `make gen` 或项目中明确的生成目标。
