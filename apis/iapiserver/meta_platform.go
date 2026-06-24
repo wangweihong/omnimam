@@ -81,24 +81,64 @@ const (
 
 type Provider struct {
 	imachinery.ObjectMeta
-	Type          string `json:"type"                     gorm:"column:type;type:varchar(64);not null;index"`
-	Enabled       bool   `json:"enabled"                  gorm:"column:enabled;type:boolean;not null;default:true"`
-	BaseURL       string `json:"base_url"                 gorm:"column:base_url;type:varchar(512)"`
-	AuthType      string `json:"auth_type"                gorm:"column:auth_type;type:varchar(64)"`
-	CredentialRef string `json:"credential_ref,omitempty" gorm:"column:credential_ref;type:varchar(512)"`
+	Type          string         `json:"type"                     gorm:"column:type;type:varchar(64);not null;index"`
+	Enabled       bool           `json:"enabled"                  gorm:"column:enabled;type:boolean;not null;default:true"`
+	BaseURL       string         `json:"base_url"                 gorm:"column:base_url;type:varchar(512)"`
+	AuthType      string         `json:"auth_type"                gorm:"column:auth_type;type:varchar(64)"`
+	CredentialRef string         `json:"credential_ref,omitempty" gorm:"column:credential_ref;type:varchar(512)"`
+	PresetKey     string         `json:"preset_key,omitempty"     gorm:"column:preset_key;type:varchar(64);index"`
+	Config        map[string]any `json:"config,omitempty"         gorm:"-"`
+	ConfigShadow  string         `json:"-"                        gorm:"column:config;type:text"`
 }
 
 func (Provider) TableName() string { return "providers" }
+
+func (p *Provider) BeforeCreate(tx *gorm.DB) error {
+	if err := p.ObjectMeta.BeforeCreate(tx); err != nil {
+		return err
+	}
+	return p.marshalShadows()
+}
+
+func (p *Provider) BeforeUpdate(tx *gorm.DB) error {
+	if err := p.ObjectMeta.BeforeUpdate(tx); err != nil {
+		return err
+	}
+	return p.marshalShadows()
+}
+
+func (p *Provider) AfterFind(tx *gorm.DB) error {
+	if err := p.ObjectMeta.AfterFind(tx); err != nil {
+		return err
+	}
+	_ = json.Unmarshal([]byte(p.ConfigShadow), &p.Config)
+	return nil
+}
+
+func (p *Provider) marshalShadows() error {
+	data, err := json.Marshal(p.Config)
+	if err != nil {
+		return err
+	}
+	p.ConfigShadow = string(data)
+	return nil
+}
 
 type ProviderModel struct {
 	imachinery.ObjectMeta
 	ProviderID          string         `json:"provider_id"              gorm:"column:provider_id;type:varchar(64);not null;index"`
 	Model               string         `json:"model"                    gorm:"column:model;type:varchar(128);not null;index"`
+	EndpointType        string         `json:"endpoint_type,omitempty"   gorm:"column:endpoint_type;type:varchar(64);index"`
+	GroupName           string         `json:"group_name,omitempty"      gorm:"column:group_name;type:varchar(128);index"`
 	Capabilities        []string       `json:"capabilities"             gorm:"-"`
 	CapabilitiesShadow  string         `json:"-"                        gorm:"column:capabilities;type:text"`
+	ModelTypes          []string       `json:"model_types,omitempty"     gorm:"-"`
+	ModelTypesShadow    string         `json:"-"                        gorm:"column:model_types;type:text"`
 	Enabled             bool           `json:"enabled"                  gorm:"column:enabled;type:boolean;not null;default:true"`
 	DefaultParams       map[string]any `json:"default_params,omitempty" gorm:"-"`
 	DefaultParamsShadow string         `json:"-"                        gorm:"column:default_params;type:text"`
+	Pricing             map[string]any `json:"pricing,omitempty"        gorm:"-"`
+	PricingShadow       string         `json:"-"                        gorm:"column:pricing;type:text"`
 }
 
 func (ProviderModel) TableName() string { return "provider_models" }
@@ -122,7 +162,9 @@ func (m *ProviderModel) AfterFind(tx *gorm.DB) error {
 		return err
 	}
 	_ = json.Unmarshal([]byte(m.CapabilitiesShadow), &m.Capabilities)
+	_ = json.Unmarshal([]byte(m.ModelTypesShadow), &m.ModelTypes)
 	_ = json.Unmarshal([]byte(m.DefaultParamsShadow), &m.DefaultParams)
+	_ = json.Unmarshal([]byte(m.PricingShadow), &m.Pricing)
 	return nil
 }
 
@@ -131,12 +173,22 @@ func (m *ProviderModel) marshalShadows() error {
 	if err != nil {
 		return err
 	}
+	modelTypes, err := json.Marshal(m.ModelTypes)
+	if err != nil {
+		return err
+	}
 	params, err := json.Marshal(m.DefaultParams)
 	if err != nil {
 		return err
 	}
+	pricing, err := json.Marshal(m.Pricing)
+	if err != nil {
+		return err
+	}
 	m.CapabilitiesShadow = string(capabilities)
+	m.ModelTypesShadow = string(modelTypes)
 	m.DefaultParamsShadow = string(params)
+	m.PricingShadow = string(pricing)
 	return nil
 }
 

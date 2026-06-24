@@ -33,22 +33,60 @@ type (
 	}
 
 	ProviderCreateRequest struct {
-		Name          string `json:"name"           binding:"required"`
-		Type          string `json:"type"           binding:"required"`
-		Enabled       *bool  `json:"enabled"`
-		BaseURL       string `json:"base_url"`
-		AuthType      string `json:"auth_type"`
-		CredentialRef string `json:"credential_ref"`
+		Name          string         `json:"name"           binding:"required"`
+		Type          string         `json:"type"           binding:"required"`
+		Enabled       *bool          `json:"enabled"`
+		BaseURL       string         `json:"base_url"`
+		AuthType      string         `json:"auth_type"`
+		CredentialRef string         `json:"credential_ref"`
+		PresetKey     string         `json:"preset_key"`
+		Config        map[string]any `json:"config"`
 	}
 
 	ProviderUpdateRequest struct {
-		ID            string  `json:"id"`
-		Name          *string `json:"name"`
-		Type          *string `json:"type"`
-		Enabled       *bool   `json:"enabled"`
-		BaseURL       *string `json:"base_url"`
-		AuthType      *string `json:"auth_type"`
-		CredentialRef *string `json:"credential_ref"`
+		ID            string          `json:"id"`
+		Name          *string         `json:"name"`
+		Type          *string         `json:"type"`
+		Enabled       *bool           `json:"enabled"`
+		BaseURL       *string         `json:"base_url"`
+		AuthType      *string         `json:"auth_type"`
+		CredentialRef *string         `json:"credential_ref"`
+		PresetKey     *string         `json:"preset_key"`
+		Config        *map[string]any `json:"config"`
+	}
+
+	ProviderPresetListResponse struct {
+		Presets []*ProviderPreset `json:"presets"`
+	}
+
+	ProviderPresetInstallRequest struct {
+		PresetKey string `json:"preset_key"`
+	}
+
+	ProviderPreset struct {
+		Key               string                  `json:"key"`
+		Name              string                  `json:"name"`
+		Type              string                  `json:"type"`
+		BaseURL           string                  `json:"base_url"`
+		AuthType          string                  `json:"auth_type"`
+		Icon              string                  `json:"icon"`
+		APISettingsSchema []ProviderAPISetting    `json:"api_settings_schema"`
+		ModelTypeRules    []ProviderModelTypeRule `json:"model_type_rules"`
+	}
+
+	ProviderAPISetting struct {
+		Key         string `json:"key"`
+		Label       string `json:"label"`
+		Description string `json:"description"`
+		Type        string `json:"type"`
+		Default     any    `json:"default"`
+	}
+
+	ProviderModelTypeRule struct {
+		Contains     []string `json:"contains"`
+		ModelTypes   []string `json:"model_types"`
+		GroupName    string   `json:"group_name"`
+		EndpointType string   `json:"endpoint_type"`
 	}
 
 	// ProviderTestRequest tests a provider connection with optional unsaved form overrides.
@@ -82,9 +120,13 @@ type (
 		ProviderID    string         `json:"provider_id"`
 		Name          string         `json:"name"           binding:"required"`
 		Model         string         `json:"model"          binding:"required"`
+		EndpointType  string         `json:"endpoint_type"`
+		GroupName     string         `json:"group_name"`
 		Capabilities  []string       `json:"capabilities"`
+		ModelTypes    []string       `json:"model_types"`
 		Enabled       *bool          `json:"enabled"`
 		DefaultParams map[string]any `json:"default_params"`
+		Pricing       map[string]any `json:"pricing"`
 	}
 
 	ProviderModelUpdateRequest struct {
@@ -92,9 +134,13 @@ type (
 		ProviderID    string          `json:"provider_id"`
 		Name          *string         `json:"name"`
 		Model         *string         `json:"model"`
+		EndpointType  *string         `json:"endpoint_type"`
+		GroupName     *string         `json:"group_name"`
 		Capabilities  *[]string       `json:"capabilities"`
+		ModelTypes    *[]string       `json:"model_types"`
 		Enabled       *bool           `json:"enabled"`
 		DefaultParams *map[string]any `json:"default_params"`
+		Pricing       *map[string]any `json:"pricing"`
 	}
 
 	// ProviderModelSyncRequest imports remote OpenAI-compatible model metadata into ProviderModel rows.
