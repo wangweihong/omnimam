@@ -1,6 +1,8 @@
 package apiserver
 
 import (
+	"time"
+
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"github.com/wangweihong/gotoolbox/pkg/log"
 	"github.com/wangweihong/gotoolbox/pkg/shutdown"
@@ -8,6 +10,8 @@ import (
 
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/omnimam/internal/apiserver/config"
+	"github.com/wangweihong/omnimam/internal/apiserver/options"
+	platformsvc "github.com/wangweihong/omnimam/internal/apiserver/service/v1/platform"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
 	"github.com/wangweihong/omnimam/internal/apiserver/store/database"
 	"github.com/wangweihong/omnimam/internal/apiserver/store/postgresql"
@@ -20,6 +24,7 @@ type server struct {
 	httpServer *httpsvr.GenericHTTPServer
 	// 控制服务关闭时处理动作, 如捕捉到信号后如何处理
 	gracefulShutdown *shutdown.GracefulShutdown
+	assetUpload      *options.AssetUploadOptions
 }
 
 // preparedServer is a private wrapper that enforces a call of PrepareRun() before Run can be invoked.
@@ -72,6 +77,7 @@ func createServer(cfg *config.Config) (*server, error) {
 	server := &server{
 		httpServer:       genericServer,
 		gracefulShutdown: gs,
+		assetUpload:      cfg.AssetUploadOptions,
 	}
 
 	return server, nil
@@ -193,6 +199,10 @@ func (s *server) PrepareRun() preparedServer {
 }
 
 func (s preparedServer) Run(stopCh <-chan struct{}) error {
+	if s.assetUpload != nil {
+		platformsvc.SetChunkUploadTempDir(s.assetUpload.ChunkTempDir)
+		platformsvc.StartChunkUploadCleanup(stopCh, time.Duration(s.assetUpload.ChunkCleanupHours)*time.Hour)
+	}
 	// start shutdown managers
 	if err := s.gracefulShutdown.Start(); err != nil {
 		log.Fatalf("start shutdown manager failed: %s", err.Error())

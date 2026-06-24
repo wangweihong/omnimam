@@ -69,6 +69,10 @@ build.multiarch:
 image:
 	@$(MAKE) image.build
 
+.PHONY: compose
+compose: image frontend.image
+	@docker compose -f deployments/docker-compose.yaml down &&  docker compose -f deployments/docker-compose.yaml up -d
+
 ## gobuild.push.multiarch: Build source code in docker golang container and docker image for multiple platforms, push images to registry. See option PLATFORMS.
 .PHONY: gobuild.push.multiarch
 gobuild.push.multiarch:

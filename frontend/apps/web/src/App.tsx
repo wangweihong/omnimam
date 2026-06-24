@@ -85,9 +85,9 @@ export function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard me={me} />} />
-          <Route path="/assets" element={<Assets canWrite={hasPermission(me, "asset.write")} />} />
-          <Route path="/providers" element={<Providers canWrite={hasPermission(me, "provider.write")} />} />
-          <Route path="/tasks" element={<Tasks canWrite={hasPermission(me, "task.write")} />} />
+          <Route path="/assets" element={<Assets canWrite={hasPermission(me, "asset.create")} />} />
+          <Route path="/providers" element={<Providers canWrite={hasPermission(me, "provider.manage")} />} />
+          <Route path="/tasks" element={<Tasks canWrite={hasPermission(me, "task.cancel")} />} />
           <Route path="/canvases" element={<Canvases />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

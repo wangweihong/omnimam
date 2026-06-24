@@ -42,6 +42,10 @@ export class ApiClient {
     return this.request<T>(path, { ...options, method: "PUT", body });
   }
 
+  async delete<T>(path: string, options: RequestOptions = {}): Promise<T> {
+    return this.request<T>(path, { ...options, method: "DELETE" });
+  }
+
   async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
     const url = this.buildURL(path, options.query);
     const headers = new Headers(options.headers);
@@ -49,7 +53,7 @@ export class ApiClient {
     void query;
     const init: RequestInit = { ...requestOptions, headers };
 
-    if (body instanceof FormData) {
+    if (body instanceof FormData || body instanceof Blob || body instanceof ArrayBuffer) {
       init.body = body;
     } else if (body !== undefined) {
       headers.set("Content-Type", "application/json");

@@ -2,13 +2,16 @@ package platform
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/wangweihong/gotoolbox/pkg/errors"
 
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	srvv1 "github.com/wangweihong/omnimam/internal/apiserver/service/v1"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
+	"github.com/wangweihong/omnimam/internal/pkg/code"
 	"github.com/wangweihong/omnimam/pkg/core"
 )
 
@@ -135,6 +138,44 @@ func (pc *PlatformController) UploadAsset(c *gin.Context) {
 	core.WriteResponse(c, err, ret)
 }
 
+// InitAssetChunkUpload prepares a resumable upload under a checksum-scoped temp directory.
+func (pc *PlatformController) InitAssetChunkUpload(c *gin.Context) {
+	core.Run(c, &iapiserver.AssetChunkUploadInitRequest{}, func(r *iapiserver.AssetChunkUploadInitRequest) (any, error) {
+		return pc.srv.Platforms().AssetChunkUploadInit(c, r)
+	})
+}
+
+// UploadAssetChunk writes one chunk. It does not create an asset until complete is called.
+func (pc *PlatformController) UploadAssetChunk(c *gin.Context) {
+	index, err := strconv.Atoi(c.Param("index"))
+	if err != nil {
+		core.WriteResponse(c, errors.NewStatusF(code.ErrValidation, "invalid chunk index"), nil)
+		return
+	}
+	ret, err := pc.srv.Platforms().AssetChunkUploadPart(c, c.Param("checksum"), index, c.Request.Body)
+	core.WriteResponse(c, err, ret)
+}
+
+// CompleteAssetChunkUpload merges chunks, validates the final checksum, creates the asset, and removes temp chunks.
+func (pc *PlatformController) CompleteAssetChunkUpload(c *gin.Context) {
+	req := &iapiserver.AssetChunkUploadCompleteRequest{Checksum: c.Param("checksum")}
+	if err := c.ShouldBindJSON(req); err != nil {
+		core.WriteResponse(c, err, nil)
+		return
+	}
+	if req.Checksum == "" {
+		req.Checksum = c.Param("checksum")
+	}
+	ret, err := pc.srv.Platforms().AssetChunkUploadComplete(c, req)
+	core.WriteResponse(c, err, ret)
+}
+
+// CancelAssetChunkUpload removes a checksum-scoped temporary chunk directory.
+func (pc *PlatformController) CancelAssetChunkUpload(c *gin.Context) {
+	ret, err := pc.srv.Platforms().AssetChunkUploadCancel(c, c.Param("checksum"))
+	core.WriteResponse(c, err, ret)
+}
+
 func (pc *PlatformController) ListAssets(c *gin.Context) {
 	core.Run(c, &iapiserver.AssetListRequest{}, func(r *iapiserver.AssetListRequest) (any, error) {
 		return pc.srv.Platforms().AssetList(c, r)
@@ -167,6 +208,14 @@ func (pc *PlatformController) UpdateAsset(c *gin.Context) {
 	}
 	ret, err := pc.srv.Platforms().AssetUpdate(c, req)
 	core.WriteResponse(c, err, ret)
+}
+
+// DeleteAsset marks one asset as deleted. It keeps raw content and thumbnail
+// objects in storage, and the asset is hidden from default list/search results.
+func (pc *PlatformController) DeleteAsset(c *gin.Context) {
+	core.Run(c, nil, func(_ any) (any, error) {
+		return pc.srv.Platforms().AssetDelete(c, c.Param("asset_id"))
+	})
 }
 
 func (pc *PlatformController) GetAssetContent(c *gin.Context) {

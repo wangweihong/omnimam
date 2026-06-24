@@ -15,6 +15,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,6 +26,7 @@ import (
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/omnimam/apis/imachinery"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
+	"github.com/wangweihong/omnimam/internal/pkg/code"
 )
 
 type PlatformSrv interface {
@@ -69,6 +72,20 @@ type PlatformSrv interface {
 		tagNames []string,
 		sourceType string,
 	) (*iapiserver.AssetUploadResponse, error)
+	// AssetChunkUploadInit prepares a checksum-scoped resumable upload directory and reports uploaded chunks.
+	AssetChunkUploadInit(
+		ctx context.Context,
+		req *iapiserver.AssetChunkUploadInitRequest,
+	) (*iapiserver.AssetChunkUploadInitResponse, error)
+	// AssetChunkUploadPart writes one resumable upload chunk. The final asset is not created until complete.
+	AssetChunkUploadPart(ctx context.Context, checksum string, index int, body io.Reader) (*iapiserver.AssetChunkUploadPartResponse, error)
+	// AssetChunkUploadComplete merges chunks, validates final checksum, creates the asset, and removes temp files.
+	AssetChunkUploadComplete(
+		ctx context.Context,
+		req *iapiserver.AssetChunkUploadCompleteRequest,
+	) (*iapiserver.AssetUploadResponse, error)
+	// AssetChunkUploadCancel removes a checksum-scoped resumable upload directory.
+	AssetChunkUploadCancel(ctx context.Context, checksum string) (*iapiserver.AssetChunkUploadCancelResponse, error)
 	AssetList(ctx context.Context, req *iapiserver.AssetListRequest) (*iapiserver.AssetListResponse, error)
 	AssetSearch(ctx context.Context, req *iapiserver.AssetSearchRequest) (*iapiserver.AssetListResponse, error)
 	AssetSearchParse(
@@ -77,6 +94,8 @@ type PlatformSrv interface {
 	) (*iapiserver.AssetSearchParseResponse, error)
 	AssetGet(ctx context.Context, id string) (*iapiserver.AssetRecord, error)
 	AssetUpdate(ctx context.Context, req *iapiserver.AssetUpdateRequest) (*iapiserver.AssetRecord, error)
+	// AssetDelete marks one asset as deleted. It keeps stored objects and relations for recovery/audit.
+	AssetDelete(ctx context.Context, id string) (*iapiserver.AssetRecord, error)
 	AssetContentPath(ctx context.Context, id string) (string, string, error)
 	AssetThumbnailPath(ctx context.Context, id string) (string, string, error)
 	AssetGroupCreate(
@@ -94,6 +113,37 @@ type PlatformSrv interface {
 
 type platformService struct {
 	store store.Factory
+}
+
+var (
+	chunkUploadTempDir      = filepath.Join(os.TempDir(), "omnimam", "upload-parts")
+	chunkUploadCleanupHours = 24
+)
+
+func SetChunkUploadTempDir(dir string) {
+	if strings.TrimSpace(dir) != "" {
+		chunkUploadTempDir = dir
+	}
+}
+
+func StartChunkUploadCleanup(stopCh <-chan struct{}, ttl time.Duration) {
+	if ttl <= 0 {
+		ttl = 24 * time.Hour
+	}
+	chunkUploadCleanupHours = int(ttl / time.Hour)
+	ticker := time.NewTicker(time.Hour)
+	go func() {
+		defer ticker.Stop()
+		cleanupChunkUploadDirs(ttl)
+		for {
+			select {
+			case <-ticker.C:
+				cleanupChunkUploadDirs(ttl)
+			case <-stopCh:
+				return
+			}
+		}
+	}()
 }
 
 func NewService(str store.Factory) *platformService {
@@ -372,12 +422,27 @@ func (s *platformService) AssetUpload(
 	tagNames []string,
 	sourceType string,
 ) (*iapiserver.AssetUploadResponse, error) {
+	src, err := fileHeader.Open()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	defer src.Close()
+	return s.createAssetFromReader(ctx, src, filepath.Base(fileHeader.Filename), tagNames, sourceType)
+}
+
+func (s *platformService) createAssetFromReader(
+	ctx context.Context,
+	src io.Reader,
+	filename string,
+	tagNames []string,
+	sourceType string,
+) (*iapiserver.AssetUploadResponse, error) {
 	backend, err := s.ensureDefaultLocalBackend(ctx)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 	assetID := uuid.New().String()
-	filename := filepath.Base(fileHeader.Filename)
+	filename = filepath.Base(filename)
 	objectKey := filepath.ToSlash(filepath.Join("assets", time.Now().Format("2006/01"), assetID, filename))
 	absPath, err := localObjectPath(backend, objectKey)
 	if err != nil {
@@ -387,11 +452,6 @@ func (s *platformService) AssetUpload(
 		return nil, errors.WithStack(err)
 	}
 
-	src, err := fileHeader.Open()
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-	defer src.Close()
 	dst, err := os.Create(absPath)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -480,6 +540,167 @@ func (s *platformService) AssetUpload(
 	return &iapiserver.AssetUploadResponse{Asset: record, Tasks: []*iapiserver.Task{probeTask, thumbTask}}, nil
 }
 
+func (s *platformService) AssetChunkUploadInit(
+	_ context.Context,
+	req *iapiserver.AssetChunkUploadInitRequest,
+) (*iapiserver.AssetChunkUploadInitResponse, error) {
+	if err := validateChunkUploadSpec(req.Checksum, req.ChunkSize, req.TotalChunks, req.Size); err != nil {
+		return nil, err
+	}
+	dir, err := chunkUploadDir(req.Checksum)
+	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(dir, 0750); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	if err := touchChunkUploadDir(dir); err != nil {
+		return nil, err
+	}
+	uploaded, err := uploadedChunkIndexes(dir)
+	if err != nil {
+		return nil, err
+	}
+	return &iapiserver.AssetChunkUploadInitResponse{
+		Checksum:       req.Checksum,
+		UploadedChunks: uploaded,
+		ChunkSize:      req.ChunkSize,
+		TotalChunks:    req.TotalChunks,
+		ExpiresHours:   chunkUploadCleanupHours,
+	}, nil
+}
+
+func (s *platformService) AssetChunkUploadPart(
+	_ context.Context,
+	checksum string,
+	index int,
+	body io.Reader,
+) (*iapiserver.AssetChunkUploadPartResponse, error) {
+	if err := validateChecksum(checksum); err != nil {
+		return nil, err
+	}
+	if index < 0 {
+		return nil, errors.NewStatusF(code.ErrValidation, "chunk index must be greater than or equal to zero")
+	}
+	dir, err := chunkUploadDir(checksum)
+	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(dir, 0750); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	tmpPath := filepath.Join(dir, fmt.Sprintf("%06d.part.tmp", index))
+	partPath := filepath.Join(dir, chunkPartName(index))
+	dst, err := os.Create(tmpPath)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	size, copyErr := io.Copy(dst, body)
+	closeErr := dst.Close()
+	if copyErr != nil {
+		_ = os.Remove(tmpPath)
+		return nil, errors.WithStack(copyErr)
+	}
+	if closeErr != nil {
+		_ = os.Remove(tmpPath)
+		return nil, errors.WithStack(closeErr)
+	}
+	if err := os.Rename(tmpPath, partPath); err != nil {
+		_ = os.Remove(tmpPath)
+		return nil, errors.WithStack(err)
+	}
+	if err := touchChunkUploadDir(dir); err != nil {
+		return nil, err
+	}
+	return &iapiserver.AssetChunkUploadPartResponse{Checksum: checksum, Index: index, Size: size}, nil
+}
+
+func (s *platformService) AssetChunkUploadComplete(
+	ctx context.Context,
+	req *iapiserver.AssetChunkUploadCompleteRequest,
+) (*iapiserver.AssetUploadResponse, error) {
+	if err := validateChunkUploadSpec(req.Checksum, req.ChunkSize, req.TotalChunks, req.Size); err != nil {
+		return nil, err
+	}
+	dir, err := chunkUploadDir(req.Checksum)
+	if err != nil {
+		return nil, err
+	}
+	mergedPath := filepath.Join(dir, "merged")
+	merged, err := os.Create(mergedPath)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	hasher := sha256.New()
+	writer := io.MultiWriter(merged, hasher)
+	var total int64
+	for i := 0; i < req.TotalChunks; i++ {
+		partPath := filepath.Join(dir, chunkPartName(i))
+		part, err := os.Open(partPath)
+		if err != nil {
+			_ = merged.Close()
+			_ = os.Remove(mergedPath)
+			return nil, errors.NewStatusF(code.ErrValidation, "missing chunk %d", i)
+		}
+		written, copyErr := io.Copy(writer, part)
+		closeErr := part.Close()
+		if copyErr != nil {
+			_ = merged.Close()
+			_ = os.Remove(mergedPath)
+			return nil, errors.WithStack(copyErr)
+		}
+		if closeErr != nil {
+			_ = merged.Close()
+			_ = os.Remove(mergedPath)
+			return nil, errors.WithStack(closeErr)
+		}
+		total += written
+	}
+	if err := merged.Close(); err != nil {
+		_ = os.Remove(mergedPath)
+		return nil, errors.WithStack(err)
+	}
+	actualChecksum := hex.EncodeToString(hasher.Sum(nil))
+	if total != req.Size || actualChecksum != strings.ToLower(req.Checksum) {
+		_ = os.Remove(mergedPath)
+		return nil, errors.NewStatusF(code.ErrValidation, "merged file checksum or size mismatch")
+	}
+	src, err := os.Open(mergedPath)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	defer src.Close()
+	resp, err := s.createAssetFromReader(ctx, src, req.Filename, req.TagNames, req.SourceType)
+	if err != nil {
+		return nil, err
+	}
+	_ = os.RemoveAll(dir)
+	return resp, nil
+}
+
+func (s *platformService) AssetChunkUploadCancel(
+	_ context.Context,
+	checksum string,
+) (*iapiserver.AssetChunkUploadCancelResponse, error) {
+	if err := validateChecksum(checksum); err != nil {
+		return nil, err
+	}
+	dir, err := chunkUploadDir(checksum)
+	if err != nil {
+		return nil, err
+	}
+	deleted := false
+	if _, err := os.Stat(dir); err == nil {
+		deleted = true
+		if err := os.RemoveAll(dir); err != nil {
+			return nil, errors.WithStack(err)
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, errors.WithStack(err)
+	}
+	return &iapiserver.AssetChunkUploadCancelResponse{Checksum: checksum, Deleted: deleted}, nil
+}
+
 func (s *platformService) AssetList(
 	ctx context.Context,
 	req *iapiserver.AssetListRequest,
@@ -565,6 +786,13 @@ func (s *platformService) AssetUpdate(
 	return s.assetRecord(ctx, updated)
 }
 
+func (s *platformService) AssetDelete(ctx context.Context, id string) (*iapiserver.AssetRecord, error) {
+	if err := s.store.AssetsV2().Delete(ctx, id); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return s.AssetGet(ctx, id)
+}
+
 func (s *platformService) AssetContentPath(ctx context.Context, id string) (string, string, error) {
 	asset, err := s.store.AssetsV2().Get(ctx, id)
 	if err != nil {
@@ -578,6 +806,12 @@ func (s *platformService) AssetContentPath(ctx context.Context, id string) (stri
 	if err != nil {
 		return "", "", err
 	}
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return "", "", errors.NewStatusF(code.ErrPageNotFound, "asset content not found")
+		}
+		return "", "", errors.WithStack(err)
+	}
 	return path, asset.MimeType, nil
 }
 
@@ -587,7 +821,7 @@ func (s *platformService) AssetThumbnailPath(ctx context.Context, id string) (st
 		return "", "", errors.WithStack(err)
 	}
 	if thumb.Status != iapiserver.ThumbnailStatusReady || thumb.ObjectKey == "" {
-		return "", "", errors.Errorf("thumbnail is not ready")
+		return "", "", errors.NewStatusF(code.ErrValidation, "thumbnail is not ready")
 	}
 	backend, err := s.store.StorageBackends().Get(ctx, thumb.StorageBackendID)
 	if err != nil {
@@ -596,6 +830,12 @@ func (s *platformService) AssetThumbnailPath(ctx context.Context, id string) (st
 	path, err := localObjectPath(backend, thumb.ObjectKey)
 	if err != nil {
 		return "", "", err
+	}
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return "", "", errors.NewStatusF(code.ErrPageNotFound, "thumbnail content not found")
+		}
+		return "", "", errors.WithStack(err)
 	}
 	return path, thumb.MimeType, nil
 }
@@ -860,6 +1100,108 @@ func localObjectPath(backend *iapiserver.StorageBackend, objectKey string) (stri
 	return path, nil
 }
 
+func validateChunkUploadSpec(checksum string, chunkSize int64, totalChunks int, size int64) error {
+	if err := validateChecksum(checksum); err != nil {
+		return err
+	}
+	if chunkSize <= 0 {
+		return errors.NewStatusF(code.ErrValidation, "chunk_size must be greater than zero")
+	}
+	if totalChunks <= 0 {
+		return errors.NewStatusF(code.ErrValidation, "total_chunks must be greater than zero")
+	}
+	if size <= 0 {
+		return errors.NewStatusF(code.ErrValidation, "size must be greater than zero")
+	}
+	expectedChunks := int((size + chunkSize - 1) / chunkSize)
+	if expectedChunks != totalChunks {
+		return errors.NewStatusF(code.ErrValidation, "total_chunks does not match size and chunk_size")
+	}
+	return nil
+}
+
+func validateChecksum(checksum string) error {
+	if len(checksum) != 64 {
+		return errors.NewStatusF(code.ErrValidation, "checksum must be a sha256 hex string")
+	}
+	for _, r := range checksum {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
+			return errors.NewStatusF(code.ErrValidation, "checksum must be a sha256 hex string")
+		}
+	}
+	return nil
+}
+
+func chunkUploadDir(checksum string) (string, error) {
+	if err := validateChecksum(checksum); err != nil {
+		return "", err
+	}
+	root, err := filepath.Abs(chunkUploadTempDir)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+	target := filepath.Join(root, strings.ToLower(checksum))
+	if !strings.HasPrefix(target, root+string(os.PathSeparator)) && target != root {
+		return "", errors.NewStatusF(code.ErrValidation, "invalid chunk upload path")
+	}
+	return target, nil
+}
+
+func chunkPartName(index int) string {
+	return fmt.Sprintf("%06d.part", index)
+}
+
+func uploadedChunkIndexes(dir string) ([]int, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []int{}, nil
+		}
+		return nil, errors.WithStack(err)
+	}
+	indexes := []int{}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".part") {
+			continue
+		}
+		raw := strings.TrimSuffix(entry.Name(), ".part")
+		index, err := strconv.Atoi(raw)
+		if err == nil {
+			indexes = append(indexes, index)
+		}
+	}
+	sort.Ints(indexes)
+	return indexes, nil
+}
+
+func touchChunkUploadDir(dir string) error {
+	now := time.Now()
+	if err := os.Chtimes(dir, now, now); err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
+}
+
+func cleanupChunkUploadDirs(ttl time.Duration) {
+	entries, err := os.ReadDir(chunkUploadTempDir)
+	if err != nil {
+		return
+	}
+	cutoff := time.Now().Add(-ttl)
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		if info.ModTime().Before(cutoff) {
+			_ = os.RemoveAll(filepath.Join(chunkUploadTempDir, entry.Name()))
+		}
+	}
+}
+
 func mediaTypeFromFile(mimeType string, filename string) (string, string) {
 	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(filename)), ".")
 	switch {
@@ -867,7 +1209,11 @@ func mediaTypeFromFile(mimeType string, filename string) (string, string) {
 		return iapiserver.AssetMediaTypeImage, ext
 	case strings.HasPrefix(mimeType, "video/"):
 		return iapiserver.AssetMediaTypeVideo, ext
+	case ext == "mp4" || ext == "webm" || ext == "mov" || ext == "mkv" || ext == "avi":
+		return iapiserver.AssetMediaTypeVideo, ext
 	case strings.HasPrefix(mimeType, "audio/"):
+		return iapiserver.AssetMediaTypeAudio, ext
+	case ext == "mp3" || ext == "wav" || ext == "flac" || ext == "m4a" || ext == "ogg":
 		return iapiserver.AssetMediaTypeAudio, ext
 	case mimeType == "application/pdf" || ext == "pdf":
 		return iapiserver.AssetMediaTypePDF, ext
@@ -926,6 +1272,9 @@ func parseNaturalAssetQuery(text string) iapiserver.AssetListRequest {
 	}
 	if strings.Contains(lower, "template") || strings.Contains(text, "模板") || strings.Contains(lower, "ideogram4") {
 		query.MediaType = iapiserver.AssetMediaTypePromptTemplate
+	}
+	if strings.Contains(lower, "deleted") || strings.Contains(text, "已删除") || strings.Contains(text, "回收站") {
+		query.Status = "deleted"
 	}
 	re := regexp.MustCompile(`(\d{2,5})\s*[x×*]\s*(\d{2,5})`)
 	if match := re.FindStringSubmatch(text); len(match) == 3 {

@@ -259,6 +259,11 @@ func (s *platformAssetStore) List(
 	var items []*iapiserver.Asset
 	var total int64
 	filter := func(q *gorm.DB) *gorm.DB {
+		if req.Status == "deleted" || (req.Deleted != nil && *req.Deleted) {
+			q = q.Where("deleted_at > 0")
+		} else {
+			q = q.Where("(deleted_at = 0 OR deleted_at IS NULL)")
+		}
 		if req.MediaType != "" {
 			q = q.Where("media_type = ?", req.MediaType)
 		}
@@ -342,6 +347,20 @@ func (s *platformAssetStore) Update(ctx context.Context, data *iapiserver.Asset)
 	return data, nil
 }
 
+func (s *platformAssetStore) Delete(ctx context.Context, id string) error {
+	result := s.ds.db.WithContext(ctx).
+		Model(&iapiserver.Asset{}).
+		Where("id = ? AND (deleted_at = 0 OR deleted_at IS NULL)", id).
+		Update("deleted_at", time.Now().UnixMilli())
+	if result.Error != nil {
+		return errors.WithStack(result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return errors.Errorf("asset not found with id %v", id)
+	}
+	return nil
+}
+
 type assetThumbnailStore struct{ ds *datastore }
 
 func newAssetThumbnail(ds *datastore) *assetThumbnailStore { return &assetThumbnailStore{ds: ds} }
@@ -386,6 +405,13 @@ func (s *assetThumbnailStore) Update(
 		return nil, errors.WithStack(err)
 	}
 	return data, nil
+}
+
+func (s *assetThumbnailStore) DeleteByAsset(ctx context.Context, assetID string) error {
+	if err := s.ds.db.WithContext(ctx).Where("asset_id = ?", assetID).Delete(&iapiserver.AssetThumbnail{}).Error; err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
 }
 
 type tagStore struct{ ds *datastore }
@@ -472,6 +498,13 @@ func (s *assetTagStore) ListTagNames(ctx context.Context, assetID string) ([]str
 	return names, errors.WithStack(err)
 }
 
+func (s *assetTagStore) DeleteByAsset(ctx context.Context, assetID string) error {
+	if err := s.ds.db.WithContext(ctx).Where("asset_id = ?", assetID).Delete(&iapiserver.AssetTag{}).Error; err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
+}
+
 type assetGroupStore struct{ ds *datastore }
 
 func newAssetGroup(ds *datastore) *assetGroupStore { return &assetGroupStore{ds: ds} }
@@ -502,6 +535,13 @@ func (s *assetGroupMemberStore) BatchAdd(
 	return members, nil
 }
 
+func (s *assetGroupMemberStore) DeleteByAsset(ctx context.Context, assetID string) error {
+	if err := s.ds.db.WithContext(ctx).Where("asset_id = ?", assetID).Delete(&iapiserver.AssetGroupMember{}).Error; err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
+}
+
 type assetRelationStore struct{ ds *datastore }
 
 func newAssetRelation(ds *datastore) *assetRelationStore { return &assetRelationStore{ds: ds} }
@@ -514,6 +554,15 @@ func (s *assetRelationStore) Add(
 		return nil, errors.WithStack(err)
 	}
 	return data, nil
+}
+
+func (s *assetRelationStore) DeleteByAsset(ctx context.Context, assetID string) error {
+	if err := s.ds.db.WithContext(ctx).
+		Where("source_asset_id = ? OR target_asset_id = ?", assetID, assetID).
+		Delete(&iapiserver.AssetRelation{}).Error; err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
 }
 
 type taskStore struct{ ds *datastore }
@@ -606,8 +655,13 @@ func (s *taskStore) Claim(
 	var tasks []*iapiserver.Task
 	err := s.ds.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
-			Where("status = ? AND queue = ? AND attempts < max_attempts", iapiserver.TaskStatusPending, queue).
-			Where("(locked_until IS NULL OR locked_until = ? OR locked_until < ?)", time.Time{}, now).
+			Where("queue = ? AND attempts < max_attempts", queue).
+			Where(
+				"status = ? OR (status = ? AND locked_until < ?)",
+				iapiserver.TaskStatusPending,
+				iapiserver.TaskStatusRunning,
+				now,
+			).
 			Order("priority DESC, created_at ASC").
 			Limit(limit).
 			Find(&tasks).Error; err != nil {

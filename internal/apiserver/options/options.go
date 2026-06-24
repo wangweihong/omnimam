@@ -1,6 +1,7 @@
 package options
 
 import (
+	"github.com/spf13/pflag"
 	"github.com/wangweihong/gotoolbox/pkg/json"
 	"github.com/wangweihong/gotoolbox/pkg/log"
 
@@ -24,7 +25,27 @@ type Options struct {
 	InsecureServing         *genericoptions.InsecureServingOptions `json:"insecure" mapstructure:"insecure"`
 	SecureServing           *genericoptions.SecureServingOptions   `json:"secure"   mapstructure:"secure"`
 	//PostgresSQLOptions      *genericoptions.PostgresSQLOptions     `json:"postgres" mapstructure:"postgres"`
-	DatabaseOptions *genericoptions.DatabaseOptions `json:"database" mapstructure:"database"`
+	DatabaseOptions    *genericoptions.DatabaseOptions `json:"database"     mapstructure:"database"`
+	AssetUploadOptions *AssetUploadOptions             `json:"asset-upload" mapstructure:"asset-upload"`
+}
+
+type AssetUploadOptions struct {
+	ChunkTempDir      string `json:"chunk-temp-dir"       mapstructure:"chunk-temp-dir"`
+	ChunkCleanupHours int    `json:"chunk-cleanup-hours"  mapstructure:"chunk-cleanup-hours"`
+}
+
+func NewAssetUploadOptions() *AssetUploadOptions {
+	return &AssetUploadOptions{ChunkCleanupHours: 24}
+}
+
+func (o *AssetUploadOptions) AddFlags(fs *pflag.FlagSet) {
+	fs.StringVar(&o.ChunkTempDir, "asset-upload.chunk-temp-dir", o.ChunkTempDir, "resumable upload chunk temp dir")
+	fs.IntVar(
+		&o.ChunkCleanupHours,
+		"asset-upload.chunk-cleanup-hours",
+		o.ChunkCleanupHours,
+		"hours before unused resumable upload chunk dirs are cleaned",
+	)
 }
 
 // NewOptions creates a new Options object with default parameters.
@@ -38,7 +59,8 @@ func NewOptions() *Options {
 		FeatureOptions:          genericoptions.NewFeatureOptions(),
 		GenericServerRunOptions: genericoptions.NewServerRunOptions(),
 		//PostgresSQLOptions:      genericoptions.NewPostgresSQLOptions(),
-		DatabaseOptions: genericoptions.NewDatabaseOptions(),
+		DatabaseOptions:    genericoptions.NewDatabaseOptions(),
+		AssetUploadOptions: NewAssetUploadOptions(),
 	}
 
 	return &s
@@ -54,6 +76,7 @@ func (o *Options) Flags() (fss cliflag.NamedFlagSets) {
 	o.FeatureOptions.AddFlags(fss.FlagSet("feature"))
 	//o.PostgresSQLOptions.AddFlags(fss.FlagSet("database"))
 	o.DatabaseOptions.AddFlags(fss.FlagSet("database"))
+	o.AssetUploadOptions.AddFlags(fss.FlagSet("asset upload"))
 
 	fs := fss.FlagSet("misc")
 	fs.StringVar(&o.Name, "misc.name", o.Name, "name of server")
@@ -74,6 +97,12 @@ func (o *Options) String() string {
 func (o *Options) Complete() error {
 	if err := o.SecureServing.Complete(); err != nil {
 		return err
+	}
+	if o.AssetUploadOptions == nil {
+		o.AssetUploadOptions = NewAssetUploadOptions()
+	}
+	if o.AssetUploadOptions.ChunkCleanupHours <= 0 {
+		o.AssetUploadOptions.ChunkCleanupHours = 24
 	}
 
 	return nil

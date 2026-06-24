@@ -76,10 +76,15 @@ func installPlatformApis(rg *gin.RouterGroup, storeIns store.Factory) {
 	{
 		assets.GET("", platformController.ListAssets)
 		assets.POST("/upload", platformController.UploadAsset)
+		assets.POST("/uploads/chunks/init", platformController.InitAssetChunkUpload)
+		assets.PUT("/uploads/chunks/:checksum/:index", platformController.UploadAssetChunk)
+		assets.POST("/uploads/chunks/:checksum/complete", platformController.CompleteAssetChunkUpload)
+		assets.DELETE("/uploads/chunks/:checksum", platformController.CancelAssetChunkUpload)
 		assets.POST("/search", platformController.SearchAssets)
 		assets.POST("/search/parse", platformController.ParseAssetSearch)
 		assets.GET("/:asset_id", platformController.GetAsset)
 		assets.PATCH("/:asset_id", platformController.UpdateAsset)
+		assets.DELETE("/:asset_id", platformController.DeleteAsset)
 		assets.GET("/:asset_id/content", platformController.GetAssetContent)
 		assets.GET("/:asset_id/thumbnail", platformController.GetAssetThumbnail)
 	}

@@ -207,6 +207,7 @@ type Asset struct {
 	Format           string         `json:"format"             gorm:"column:format;type:varchar(32);index"`
 	SourceType       string         `json:"source_type"        gorm:"column:source_type;type:varchar(64);index"`
 	SourceRef        string         `json:"source_ref"         gorm:"column:source_ref;type:varchar(256);index"`
+	DeletedAt        int64          `json:"deleted_at"         gorm:"column:deleted_at;not null;default:0;index"`
 	Metadata         map[string]any `json:"metadata,omitempty" gorm:"-"`
 	MetadataShadow   string         `json:"-"                  gorm:"column:metadata;type:text"`
 }

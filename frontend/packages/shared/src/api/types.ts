@@ -62,14 +62,19 @@ export interface AssetRecord {
   name: string;
   media_type: string;
   mime_type?: string;
+  object_key?: string;
   size?: number;
+  checksum?: string;
   width?: number;
   height?: number;
   duration?: number;
   format?: string;
   source_type?: string;
+  deleted_at?: number;
   thumbnail?: AssetThumbnail;
   tags?: Tag[];
+  createdAt?: string;
+  updatedAt?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -117,6 +122,25 @@ export interface AssetSearchParseResponse {
 export interface AssetUploadResponse {
   asset: AssetRecord;
   tasks: Task[];
+}
+
+export interface AssetChunkUploadInitResponse {
+  checksum: string;
+  uploaded_chunks: number[];
+  chunk_size: number;
+  total_chunks: number;
+  expires_hours: number;
+}
+
+export interface AssetChunkUploadPartResponse {
+  checksum: string;
+  index: number;
+  size: number;
+}
+
+export interface AssetChunkUploadCancelResponse {
+  checksum: string;
+  deleted: boolean;
 }
 
 export interface TaskListResponse extends ListRet {

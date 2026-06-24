@@ -64,15 +64,18 @@ import . "github.com/smartystreets/goconvey/convey"
 - `make image` 默认从 `build/docker/*` 推导 `IMAGES`；单独验证某个 image 时，使用 `make image IMAGES="<component>"`。
 - 如果 `configs/<component>.yaml` 引用新的 environment variable，必须同步更新 `scripts/install/environment.sh`。
 - 组件环境变量使用大写 component 前缀，例如 `TASKWORKER_RUNTIME_DEBUG_OUTPUT_DIR`、`TASKWORKER_INSECURE_BIND_PORT`。
-- 新增 backend binary 组件后至少运行 `make -n configs`、`make -n image`、`make build`。
+- 新增 backend binary 组件后，日常修改阶段只需要检查相关 Makefile dry-run，例如 `make -n configs`、`make -n image`。
 - 涉及配置模板或 `COMPONENTS` 变更时，还必须运行 `make configs`。
-- 涉及 Go code 或 backend binary 时，继续遵守 `make format`、`make lint` 和提交前 `make build` 规则。
-- 推荐运行 `make verify`，一次性检查 `lint`、`test`、`build`。
+- 准备提交包含 Go code 或 backend binary 的改动前，必须运行 `go test ./...` 或项目约定的最小相关测试。
+- 修改 frontend、backend、Docker、compose 或 config 后，统一使用 `make compose` 构建 backend image、frontend image 并启动整套服务。
+- `make compose` 是首选验证入口，不重复手写 `make image`、`make frontend.image` 或 `docker compose -f deployments/docker-compose.yaml up -d`，除非正在排查对应子规则。
 
 ## Frontend 目录规则 Frontend Layout
 
 - 正式 frontend source code 必须放在 `frontend/`。
 - `frontend/` 由 nginx 独立托管，API 通过 `/api/v1` 反向代理到 Go `API Server`。
+- Frontend 构建只能通过 Docker image 方式进行；修改 frontend 或 backend 代码后的正式验证入口是 `make compose`。
+- Agent 不使用 `npm run build` 作为正式 frontend 验证命令。
 - `static/` 只能保留为参考页面、交互原型或历史能力清单；不能在 `static/` 中继续扩展正式产品功能。
 - 新增 frontend 功能时，需要先读取 `/api/v1/me`，根据 permission 和 `FeatureFlag` 动态显示菜单、按钮、provider、task entry。
 
@@ -89,23 +92,13 @@ import . "github.com/smartystreets/goconvey/convey"
 
 ## 修改后验证规则 Verification Rules
 
-- 修改 Go/backend code 后，必须运行：
-
-```bash
-make format
-make lint
-make build
-```
-
-- 修改 frontend-only code 后，运行对应 frontend 验证，例如：
-
-```bash
-npm run build
-```
-
-- Frontend-only 修改不强制运行 Go 的 `make lint` 和 `make build`。
-- 修改 docs-only 文件不强制运行 `make format`、`make lint` 和 `make build`，但必须检查文档内容和 git 状态。
-- 修改 Docker、compose、Makefile 或 config 时，按影响范围选择验证命令，例如 `docker compose config`、`make -n image`、`make -n frontend.image` 或 `make build`。
+- 修改 frontend 或 backend code 后，必须运行 `make compose` 构建镜像、启动整套服务，并按改动范围确认功能正常。
+- `make compose` 成功后，还需要进行 smoke check，例如访问 frontend 页面、调用相关 `/api/v1` endpoint、查看容器状态或日志。
+- 只有在准备执行 `git commit` 前，才执行提交前专项验证。
+- 如果提交包含 Go/backend code 或 backend binary 相关改动，提交前必须运行 `go test ./...` 或项目约定的最小相关测试。
+- Frontend-only 修改不强制运行 Go 的 `make format`、`make lint`、`go test` 和 `make build`。
+- 修改 docs-only 文件不强制运行 `make format`、`make lint`、`go test`、`make build`、`make frontend.image` 或 `make compose`，但必须检查文档内容和 git 状态。
+- 修改 Docker、compose、Makefile、config，或涉及 frontend/backend 联动时，必须通过 `make compose` 启动整套服务验证。
 - 修改 error code、generated contract、swagger、proto 或其他生成文件相关代码后，还必须运行对应 generate rule，例如 `make gen` 或项目中明确的生成目标。
 - 如果验证命令失败，交付结果时必须说明失败命令、失败原因和未完成风险。
 

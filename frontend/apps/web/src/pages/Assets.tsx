@@ -1,20 +1,91 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { RefreshCw, Search, Upload } from "lucide-react";
-import { assetThumbnailURL, listAssets, parseAssetSearch, uploadAsset, type AssetRecord } from "@omnimam/shared";
+import {
+  assetContentURL,
+  assetThumbnailURL,
+  cancelAssetChunkUpload,
+  completeAssetChunkUpload,
+  deleteAsset,
+  initAssetChunkUpload,
+  listAssets,
+  parseAssetSearch,
+  renameAsset,
+  uploadAsset,
+  uploadAssetChunk,
+  type AssetRecord,
+  type Task
+} from "@omnimam/shared";
+import {
+  Copy,
+  Download,
+  FileImage,
+  FolderInput,
+  Info,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Share2,
+  Trash2,
+  Upload,
+  X
+} from "lucide-react";
+import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ApiErrorView } from "../components/ApiErrorView";
 import { PageHeader } from "../components/PageHeader";
-import { StatusBadge } from "../components/StatusBadge";
+
+type ContextMenuState = {
+  asset: AssetRecord;
+  x: number;
+  y: number;
+};
+
+type HoverPreviewState = {
+  asset: AssetRecord;
+  x: number;
+  y: number;
+};
+
+type UploadState = {
+  active: boolean;
+  filename: string;
+  progress: number;
+  checksum?: string;
+};
+
+const CHUNK_SIZE = 1024 * 1024;
+const CHUNK_UPLOAD_THRESHOLD = 1024 * 1024;
 
 export function Assets({ canWrite }: { canWrite: boolean }) {
   const [assets, setAssets] = useState<AssetRecord[]>([]);
+  const [selectedID, setSelectedID] = useState("");
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [infoAsset, setInfoAsset] = useState<AssetRecord | null>(null);
+  const [previewAsset, setPreviewAsset] = useState<AssetRecord | null>(null);
+  const [hoverPreview, setHoverPreview] = useState<HoverPreviewState | null>(null);
   const [mediaType, setMediaType] = useState("");
+  const [format, setFormat] = useState("");
+  const [sourceType, setSourceType] = useState("");
+  const [width, setWidth] = useState("");
+  const [height, setHeight] = useState("");
   const [searchText, setSearchText] = useState("");
   const [tags, setTags] = useState("");
   const [uploadTags, setUploadTags] = useState("");
+  const [createdTasks, setCreatedTasks] = useState<Task[]>([]);
+  const [uploadState, setUploadState] = useState<UploadState | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const stopUploadRef = useRef(false);
 
-  const filters = useMemo(() => ({ media_type: mediaType || undefined, tags: tags || undefined }), [mediaType, tags]);
+  const filters = useMemo(
+    () => ({
+      media_type: mediaType || undefined,
+      format: format || undefined,
+      source_type: sourceType || undefined,
+      width: width ? Number(width) : undefined,
+      height: height ? Number(height) : undefined,
+      tags: tags || undefined
+    }),
+    [mediaType, format, sourceType, width, height, tags]
+  );
 
   async function load() {
     setBusy(true);
@@ -23,8 +94,13 @@ export function Assets({ canWrite }: { canWrite: boolean }) {
       const resp = await listAssets(filters);
       setAssets(resp.assets || []);
     } catch (err) {
-      setError(err);
+      if ((err as Error).message !== "upload stopped") {
+        setError(err);
+      }
     } finally {
+      if (stopUploadRef.current) {
+        setUploadState(null);
+      }
       setBusy(false);
     }
   }
@@ -47,12 +123,17 @@ export function Assets({ canWrite }: { canWrite: boolean }) {
 
   async function handleUpload(files: FileList | null) {
     if (!files?.length) return;
+    stopUploadRef.current = false;
     setBusy(true);
     setError(null);
     try {
+      const tasks: Task[] = [];
       for (const file of Array.from(files)) {
-        await uploadAsset(file, uploadTags);
+        if (stopUploadRef.current) break;
+        const resp = await uploadFile(file);
+        tasks.push(...(resp.tasks || []));
       }
+      setCreatedTasks(tasks);
       await load();
     } catch (err) {
       setError(err);
@@ -61,12 +142,119 @@ export function Assets({ canWrite }: { canWrite: boolean }) {
     }
   }
 
+  async function uploadFile(file: File) {
+    if (file.size <= CHUNK_UPLOAD_THRESHOLD) {
+      setUploadState({ active: true, filename: file.name, progress: 0 });
+      const resp = await uploadAsset(file, uploadTags);
+      setUploadState({ active: false, filename: file.name, progress: 100 });
+      return resp;
+    }
+
+    setUploadState({ active: true, filename: file.name, progress: 1 });
+    const checksum = await sha256File(file);
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    setUploadState({ active: true, filename: file.name, progress: 3, checksum });
+    const tagNames = splitTagInput(uploadTags);
+    const init = await initAssetChunkUpload({
+      filename: file.name,
+      size: file.size,
+      checksum,
+      chunk_size: CHUNK_SIZE,
+      total_chunks: totalChunks,
+      tag_names: tagNames,
+      source_type: "user_upload"
+    });
+    const uploaded = new Set(init.uploaded_chunks || []);
+    for (let index = 0; index < totalChunks; index++) {
+      if (stopUploadRef.current) {
+        await cancelAssetChunkUpload(checksum);
+        throw new Error("upload stopped");
+      }
+      if (!uploaded.has(index)) {
+        const start = index * CHUNK_SIZE;
+        await uploadAssetChunk(checksum, index, file.slice(start, Math.min(file.size, start + CHUNK_SIZE)));
+      }
+      setUploadState({
+        active: true,
+        filename: file.name,
+        progress: Math.round(((index + 1) / totalChunks) * 90) + 5,
+        checksum
+      });
+    }
+    const resp = await completeAssetChunkUpload({
+      filename: file.name,
+      size: file.size,
+      checksum,
+      chunk_size: CHUNK_SIZE,
+      total_chunks: totalChunks,
+      tag_names: tagNames,
+      source_type: "user_upload"
+    });
+    setUploadState({ active: false, filename: file.name, progress: 100, checksum });
+    return resp;
+  }
+
+  async function stopUpload() {
+    stopUploadRef.current = true;
+    if (uploadState?.checksum) {
+      await cancelAssetChunkUpload(uploadState.checksum).catch(() => undefined);
+    }
+    setUploadState(null);
+  }
+
+  function openContextMenu(event: MouseEvent, asset: AssetRecord) {
+    event.preventDefault();
+    const menuWidth = 220;
+    const menuHeight = 414;
+    const x = Math.min(event.clientX, window.innerWidth - menuWidth - 12);
+    const y = Math.min(event.clientY, window.innerHeight - menuHeight - 12);
+    setSelectedID(asset.id);
+    setContextMenu({ asset, x: Math.max(12, x), y: Math.max(12, y) });
+  }
+
+  async function renameSelected(asset: AssetRecord) {
+    const name = window.prompt("Rename asset", asset.name || asset.id);
+    if (!name || name === asset.name) return;
+    setError(null);
+    try {
+      await renameAsset(asset.id, name);
+      setContextMenu(null);
+      await load();
+    } catch (err) {
+      setError(err);
+    }
+  }
+
+  async function deleteSelected(asset: AssetRecord) {
+    if (!window.confirm(`Delete ${asset.name || asset.id}?`)) return;
+    setError(null);
+    try {
+      await deleteAsset(asset.id);
+      setContextMenu(null);
+      await load();
+    } catch (err) {
+      setError(err);
+    }
+  }
+
+  function downloadSelected(asset: AssetRecord) {
+    const link = document.createElement("a");
+    link.href = assetContentURL(asset.id);
+    link.download = asset.name || asset.id;
+    link.click();
+    setContextMenu(null);
+  }
+
+  function updateHoverPreview(event: MouseEvent, asset: AssetRecord) {
+    setHoverPreview({ asset, x: event.clientX, y: event.clientY });
+  }
+
   useEffect(() => {
     void load();
   }, []);
 
   return (
-    <section>
+    <section onClick={() => setContextMenu(null)}>
       <PageHeader
         title="资产"
         description="统一平面管理图片、视频、音频、文本和提示词资产；列表只展示 metadata 与 thumbnail。"
@@ -96,30 +284,419 @@ export function Assets({ canWrite }: { canWrite: boolean }) {
           <option value="pdf">pdf</option>
           <option value="prompt_template">prompt_template</option>
         </select>
+        <input value={format} onChange={(e) => setFormat(e.target.value)} placeholder="格式，例如 png/json/md" />
+        <input value={sourceType} onChange={(e) => setSourceType(e.target.value)} placeholder="来源，例如 user_upload" />
+        <input value={width} onChange={(e) => setWidth(e.target.value)} placeholder="宽度" inputMode="numeric" />
+        <input value={height} onChange={(e) => setHeight(e.target.value)} placeholder="高度" inputMode="numeric" />
         <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="标签过滤" />
         <input value={uploadTags} onChange={(e) => setUploadTags(e.target.value)} placeholder="上传标签，逗号分隔" />
         <button className="button" type="button" onClick={() => void load()} disabled={busy}>应用过滤</button>
       </div>
-      <div className="asset-grid">
+      {createdTasks.length ? (
+        <div className="notice">
+          <strong>已创建异步任务</strong>
+          <span>{createdTasks.map((task) => `${task.type}:${task.status}`).join(" / ")}</span>
+        </div>
+      ) : null}
+      {uploadState?.active ? (
+        <div className="notice upload-progress">
+          <strong>正在上传 {uploadState.filename}</strong>
+          <span>{uploadState.progress}%</span>
+          <button className="button subtle" type="button" onClick={() => void stopUpload()}>停止上传</button>
+        </div>
+      ) : null}
+
+      <div className="asset-browser">
         {assets.map((asset) => (
-          <article className="asset-card" key={asset.id}>
-            <div className="thumb">
-              {asset.thumbnail?.status === "ready" ? (
-                <img src={assetThumbnailURL(asset.id)} alt={asset.name} />
-              ) : (
-                <span>{asset.media_type}</span>
-              )}
-            </div>
-            <div className="asset-meta">
+          <button
+            className={`asset-row ${selectedID === asset.id ? "selected" : ""}`}
+            key={asset.id}
+            type="button"
+            onClick={() => setSelectedID(asset.id)}
+            onContextMenu={(event) => openContextMenu(event, asset)}
+            onDoubleClick={() => isPreviewable(asset) && setPreviewAsset(asset)}
+          >
+            <span
+              className="asset-row-thumb"
+              onMouseEnter={(event) => updateHoverPreview(event, asset)}
+              onMouseMove={(event) => updateHoverPreview(event, asset)}
+              onMouseLeave={() => setHoverPreview(null)}
+            >
+              <AssetRowThumbnail asset={asset} />
+            </span>
+            <span className="asset-row-meta">
               <strong>{asset.name || asset.id}</strong>
-              <span>{asset.mime_type || asset.format || "-"}</span>
-              <span>{asset.width && asset.height ? `${asset.width}x${asset.height}` : "size pending"}</span>
-              <StatusBadge value={asset.thumbnail?.status || "thumbnail pending"} />
-            </div>
-          </article>
+              <span>{formatBytes(asset.size)} · {formatRelative(asset.createdAt || asset.created_at)}</span>
+              <span>{asset.duration ? formatDuration(asset.duration) : asset.width && asset.height ? `${asset.width}x${asset.height}` : asset.media_type}</span>
+            </span>
+          </button>
         ))}
-        {!assets.length && !busy ? <div className="empty">暂无资产</div> : null}
+        {!assets.length && !busy ? <div className="empty asset-empty">暂无资产</div> : null}
       </div>
+
+      {hoverPreview ? <AssetHoverPreview preview={hoverPreview} /> : null}
+
+      {contextMenu ? (
+        <div className="asset-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}>
+          <button className="context-menu-add" type="button" aria-label="Add placeholder"><Plus size={22} /></button>
+          <div className="context-menu-count">1</div>
+          <button type="button" onClick={() => { setInfoAsset(contextMenu.asset); setContextMenu(null); }}><Info size={18} /> Info</button>
+          <button type="button" onClick={() => downloadSelected(contextMenu.asset)}><Download size={18} /> Download</button>
+          <button type="button" className="disabled"><Share2 size={18} /> Share</button>
+          <button type="button" onClick={() => void renameSelected(contextMenu.asset)} disabled={!canWrite}><Pencil size={18} /> Rename</button>
+          <button type="button" className="disabled"><Copy size={18} /> Copy file</button>
+          <button type="button" className="disabled"><FolderInput size={18} /> Move file</button>
+          <button type="button" className="disabled"><FileImage size={18} /> Select all</button>
+          <button type="button" onClick={() => void deleteSelected(contextMenu.asset)} disabled={!canWrite}><Trash2 size={18} /> Delete</button>
+        </div>
+      ) : null}
+
+      {infoAsset ? <AssetInfoDialog asset={infoAsset} onClose={() => setInfoAsset(null)} /> : null}
+      {previewAsset ? <AssetPreview asset={previewAsset} onClose={() => setPreviewAsset(null)} /> : null}
     </section>
   );
+}
+
+function AssetInfoDialog({ asset, onClose }: { asset: AssetRecord; onClose: () => void }) {
+  return (
+    <div className="asset-modal-backdrop">
+      <div className="asset-info-dialog">
+        <div className="asset-dialog-title">
+          <button className="dialog-close danger" type="button" onClick={onClose}><X size={18} /></button>
+          <strong>File information</strong>
+        </div>
+        <h3>Basic Information</h3>
+        <dl>
+          <dt>Display Name:</dt><dd>{asset.name || asset.id}</dd>
+          <dt>Size</dt><dd>{formatBytes(asset.size)}</dd>
+          <dt>Type</dt><dd>{asset.mime_type || asset.media_type}</dd>
+          <dt>Last modified</dt><dd>{formatDate(asset.updatedAt || asset.updated_at || asset.createdAt || asset.created_at)}</dd>
+          <dt>Source</dt><dd>{asset.source_type || "-"}</dd>
+          <dt>Path</dt><dd>{asset.object_key || "-"}</dd>
+          <dt>Hidden</dt><dd>×</dd>
+          <dt>Has Preview</dt><dd>{asset.thumbnail?.status === "ready" ? "√" : "×"}</dd>
+        </dl>
+        <h3>Checksums</h3>
+        <dl>
+          <dt>Hash Algorithm</dt><dd>SHA256</dd>
+          <dt>Hash Value</dt><dd>{asset.checksum || "not available"}</dd>
+        </dl>
+      </div>
+    </div>
+  );
+}
+
+function AssetPreview({ asset, onClose }: { asset: AssetRecord; onClose: () => void }) {
+  const [text, setText] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isTextAsset(asset)) return;
+    setText("");
+    setError("");
+    fetch(assetContentURL(asset.id))
+      .then((resp) => {
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        return resp.text();
+      })
+      .then(setText)
+      .catch((err: Error) => setError(err.message));
+  }, [asset]);
+
+  return (
+    <div className="asset-preview-page">
+      <button className="preview-close" type="button" onClick={onClose}><X size={22} /></button>
+      <div className="preview-title">{asset.name || asset.id}</div>
+      <div className="preview-body">
+        {isVideoAsset(asset) ? (
+          <video src={assetContentURL(asset.id)} controls autoPlay />
+        ) : isAudioAsset(asset) ? (
+          <audio src={assetContentURL(asset.id)} controls autoPlay />
+        ) : isTextAsset(asset) ? (
+          <pre>{error || text || "loading..."}</pre>
+        ) : isImageAsset(asset) ? (
+          <img src={assetContentURL(asset.id)} alt={asset.name || asset.id} />
+        ) : (
+          <iframe title={asset.name || asset.id} src={assetContentURL(asset.id)} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+type PreviewFrame = {
+  src: string;
+  width: number;
+  height: number;
+};
+
+function AssetRowThumbnail({ asset }: { asset: AssetRecord }) {
+  const [cover, setCover] = useState<PreviewFrame | null>(null);
+
+  useEffect(() => {
+    if (asset.thumbnail?.status === "ready" || (!isVideoAsset(asset) && !isGifAsset(asset))) return undefined;
+    let canceled = false;
+    extractMediaFrames(asset).then((frames) => {
+      if (!canceled) setCover(frames[0] || null);
+    }).catch(() => {
+      if (!canceled) setCover(null);
+    });
+    return () => {
+      canceled = true;
+    };
+  }, [asset.id, asset.thumbnail?.status]);
+
+  if (asset.thumbnail?.status === "ready") {
+    return <img src={assetThumbnailURL(asset.id)} alt="" />;
+  }
+  if (cover) {
+    return <img src={cover.src} alt="" />;
+  }
+  return <span className="default-thumb"><FileImage size={22} /></span>;
+}
+
+function AssetHoverPreview({ preview }: { preview: HoverPreviewState }) {
+  const { asset } = preview;
+  if (isVideoAsset(asset) || isGifAsset(asset)) {
+    return <AnimatedFramePreview preview={preview} />;
+  }
+  if (asset.thumbnail?.status === "ready") {
+    return (
+      <div className="asset-hover-preview" style={previewStyle(preview, asset.width, asset.height)}>
+        <img src={assetThumbnailURL(asset.id)} alt="" />
+      </div>
+    );
+  }
+  return null;
+}
+
+function AnimatedFramePreview({ preview }: { preview: HoverPreviewState }) {
+  const { asset } = preview;
+  const [frames, setFrames] = useState<PreviewFrame[]>([]);
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    let canceled = false;
+    async function extractFrames() {
+      const nextFrames = await extractMediaFrames(asset);
+      if (!canceled) {
+        setActive(0);
+        setFrames(nextFrames);
+      }
+    }
+    extractFrames().catch(() => {
+      if (!canceled) setFrames([]);
+    });
+    return () => {
+      canceled = true;
+    };
+  }, [asset.id]);
+
+  useEffect(() => {
+    if (frames.length <= 1) return undefined;
+    const timer = window.setInterval(() => setActive((value) => (value + 1) % frames.length), 1000);
+    return () => window.clearInterval(timer);
+  }, [frames.length]);
+
+  const fallback = asset.thumbnail?.status === "ready" ? assetThumbnailURL(asset.id) : "";
+  const frame = frames[active];
+  const src = frame?.src || fallback;
+  const style = previewStyle(preview, frame?.width || asset.width, frame?.height || asset.height);
+  return (
+    <div className="asset-hover-preview animated-frame-preview" style={style}>
+      {src ? <img src={src} alt="" /> : <span className="default-thumb">loading preview...</span>}
+    </div>
+  );
+}
+
+function extractMediaFrames(asset: AssetRecord) {
+  return isGifAsset(asset) ? extractGifFrames(asset) : extractVideoFrames(asset);
+}
+
+async function extractVideoFrames(asset: AssetRecord): Promise<PreviewFrame[]> {
+  const video = document.createElement("video");
+  video.crossOrigin = "anonymous";
+  video.muted = true;
+  video.src = assetContentURL(asset.id);
+  video.preload = "metadata";
+  video.load();
+  await waitForVideoEvent(video, "loadedmetadata");
+  await waitForVideoEvent(video, "loadeddata");
+  const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 1;
+  const fps = 30;
+  const totalFrames = Math.max(1, Math.floor(duration * fps));
+  const frameIndexes = buildFrameIndexes(totalFrames);
+  const canvas = document.createElement("canvas");
+  const width = video.videoWidth || asset.width || 420;
+  const height = video.videoHeight || asset.height || 260;
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) return [];
+  const frames: PreviewFrame[] = [];
+  let lastTime = -1;
+  const firstFrameTime = firstPreviewTime(duration);
+  for (const frameIndex of frameIndexes) {
+    const nextTime = frameIndex === 0 ? firstFrameTime : Math.max(firstFrameTime, Math.min(frameIndex / fps, duration));
+    if (nextTime !== lastTime) {
+      video.currentTime = nextTime;
+      await waitForVideoEvent(video, "seeked");
+    }
+    lastTime = nextTime;
+    context.drawImage(video, 0, 0, width, height);
+    frames.push({ src: canvas.toDataURL("image/jpeg", 0.78), width, height });
+  }
+  return frames;
+}
+
+async function extractGifFrames(asset: AssetRecord): Promise<PreviewFrame[]> {
+  const { parseGIF, decompressFrames } = await import("gifuct-js");
+  const resp = await fetch(assetContentURL(asset.id));
+  const buffer = await resp.arrayBuffer();
+  const gif = parseGIF(buffer);
+  const allFrames = decompressFrames(gif, true);
+  if (!allFrames.length) return [];
+  const canvas = document.createElement("canvas");
+  const width = gif.lsd.width || asset.width || 420;
+  const height = gif.lsd.height || asset.height || 260;
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) return [];
+  const patchCanvas = document.createElement("canvas");
+  const patchCtx = patchCanvas.getContext("2d");
+  if (!patchCtx) return [];
+  const sampleIndexes = buildFrameIndexes(allFrames.length);
+  const sampleSet = new Set(sampleIndexes);
+  const frames: PreviewFrame[] = [];
+  for (let index = 0; index < allFrames.length && frames.length < 5; index++) {
+    const frame = allFrames[index];
+    const { dims, patch, disposalType } = frame;
+    if (dims.width === 0 || dims.height === 0) continue;
+    patchCanvas.width = dims.width;
+    patchCanvas.height = dims.height;
+    const imageData = new ImageData(new Uint8ClampedArray(patch), dims.width, dims.height);
+    patchCtx.putImageData(imageData, 0, 0);
+    context.drawImage(patchCanvas, dims.left, dims.top);
+    if (sampleSet.has(index)) {
+      frames.push({ src: canvas.toDataURL("image/jpeg", 0.78), width, height });
+    }
+    if (disposalType === 2) {
+      context.clearRect(dims.left, dims.top, dims.width, dims.height);
+    }
+  }
+  while (frames.length > 0 && frames.length < 5) {
+    frames.push(frames[frames.length - 1]);
+  }
+  return frames;
+}
+
+function buildFrameIndexes(totalFrames: number) {
+  const step = totalFrames < 100 ? 10 : 20;
+  return Array.from({ length: 5 }, (_, index) => Math.min(index * step, totalFrames - 1));
+}
+
+function firstPreviewTime(duration: number) {
+  return Math.min(0.1, Math.max(0.01, duration / 10));
+}
+
+function previewStyle(preview: HoverPreviewState, width?: number, height?: number): CSSProperties {
+  const gap = 14;
+  const ratio = width && height ? width / height : 16 / 10;
+  const boxWidth = Math.min(520, window.innerWidth - 36);
+  const boxHeight = boxWidth / ratio;
+  return {
+    aspectRatio: `${ratio}`,
+    left: Math.max(gap, Math.min(preview.x + gap, window.innerWidth - boxWidth - gap)),
+    top: Math.max(gap, Math.min(preview.y + gap, window.innerHeight - boxHeight - gap)),
+    width: boxWidth
+  };
+}
+
+function waitForVideoEvent(video: HTMLVideoElement, event: "loadedmetadata" | "loadeddata" | "seeked") {
+  return new Promise<void>((resolve, reject) => {
+    const onDone = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error("video preview failed"));
+    };
+    const cleanup = () => {
+      video.removeEventListener(event, onDone);
+      video.removeEventListener("error", onError);
+    };
+    video.addEventListener(event, onDone, { once: true });
+    video.addEventListener("error", onError, { once: true });
+  });
+}
+
+
+
+async function sha256File(file: File) {
+  const hash = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function splitTagInput(value: string) {
+  return value.split(/[,，;；\n\t]/).map((item) => item.trim()).filter(Boolean);
+}
+
+function isImageAsset(asset: AssetRecord) {
+  return asset.media_type === "image" || asset.mime_type?.startsWith("image/");
+}
+
+function isGifAsset(asset: AssetRecord) {
+  return asset.format === "gif" || asset.mime_type === "image/gif" || asset.name?.toLowerCase().endsWith(".gif");
+}
+
+function isVideoAsset(asset: AssetRecord) {
+  return asset.media_type === "video" || asset.mime_type?.startsWith("video/");
+}
+
+function isAudioAsset(asset: AssetRecord) {
+  return asset.media_type === "audio" || asset.mime_type?.startsWith("audio/");
+}
+
+function isTextAsset(asset: AssetRecord) {
+  const name = asset.name?.toLowerCase() || "";
+  return ["text", "json", "markdown", "prompt", "prompt_template"].includes(asset.media_type) ||
+    asset.mime_type?.startsWith("text/") ||
+    asset.mime_type === "application/json" ||
+    name.endsWith(".md") ||
+    name.endsWith(".json");
+}
+
+function isPreviewable(asset: AssetRecord) {
+  return isImageAsset(asset) || isVideoAsset(asset) || isAudioAsset(asset) || isTextAsset(asset) || asset.media_type === "pdf";
+}
+
+function formatBytes(size?: number) {
+  if (!size) return "-";
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function formatDuration(duration?: number) {
+  if (!duration) return "0:00";
+  const seconds = Math.floor(duration / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function formatDate(value?: string) {
+  if (!value) return "-";
+  return new Date(value).toLocaleString();
+}
+
+function formatRelative(value?: string) {
+  if (!value) return "-";
+  const then = new Date(value).getTime();
+  const diff = Math.max(0, Date.now() - then);
+  const day = 24 * 60 * 60 * 1000;
+  if (diff < day) return "today";
+  if (diff < day * 14) return `${Math.floor(diff / day)} days ago`;
+  if (diff < day * 60) return `${Math.floor(diff / (day * 7))} weeks ago`;
+  return new Date(value).toLocaleDateString();
 }

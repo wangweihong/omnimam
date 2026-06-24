@@ -1,6 +1,9 @@
 import { apiClient } from "./client";
 import type {
   AssetListResponse,
+  AssetChunkUploadCancelResponse,
+  AssetChunkUploadInitResponse,
+  AssetChunkUploadPartResponse,
   AssetSearchParseResponse,
   AssetUploadResponse,
   CanvasListResponse,
@@ -46,8 +49,54 @@ export function uploadAsset(file: File, tags: string, sourceType = "user_upload"
   return apiClient.post<AssetUploadResponse>("/assets/upload", form);
 }
 
+export function initAssetChunkUpload(input: {
+  filename: string;
+  size: number;
+  checksum: string;
+  chunk_size: number;
+  total_chunks: number;
+  tag_names?: string[];
+  source_type?: string;
+}) {
+  return apiClient.post<AssetChunkUploadInitResponse>("/assets/uploads/chunks/init", input);
+}
+
+export function uploadAssetChunk(checksum: string, index: number, chunk: Blob) {
+  return apiClient.put<AssetChunkUploadPartResponse>(`/assets/uploads/chunks/${checksum}/${index}`, chunk, {
+    headers: { "Content-Type": "application/octet-stream" }
+  });
+}
+
+export function completeAssetChunkUpload(input: {
+  filename: string;
+  size: number;
+  checksum: string;
+  chunk_size: number;
+  total_chunks: number;
+  tag_names?: string[];
+  source_type?: string;
+}) {
+  return apiClient.post<AssetUploadResponse>(`/assets/uploads/chunks/${input.checksum}/complete`, input);
+}
+
+export function cancelAssetChunkUpload(checksum: string) {
+  return apiClient.delete<AssetChunkUploadCancelResponse>(`/assets/uploads/chunks/${checksum}`);
+}
+
 export function assetThumbnailURL(assetID: string) {
   return `/api/v1/assets/${assetID}/thumbnail`;
+}
+
+export function assetContentURL(assetID: string) {
+  return `/api/v1/assets/${assetID}/content`;
+}
+
+export function renameAsset(assetID: string, name: string) {
+  return apiClient.patch(`/assets/${assetID}`, { name });
+}
+
+export function deleteAsset(assetID: string) {
+  return apiClient.delete(`/assets/${assetID}`);
 }
 
 export function listTasks(query: Record<string, string | number | boolean | undefined> = {}) {

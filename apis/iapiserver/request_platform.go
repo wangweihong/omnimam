@@ -1,6 +1,10 @@
 package iapiserver
 
-import "github.com/wangweihong/omnimam/apis/imachinery"
+import (
+	"strings"
+
+	"github.com/wangweihong/omnimam/apis/imachinery"
+)
 
 type (
 	MeResponse struct {
@@ -139,6 +143,8 @@ type (
 		StorageBackendID string   `json:"storage_backend_id" form:"storage_backend_id"`
 		SourceType       string   `json:"source_type"        form:"source_type"`
 		Format           string   `json:"format"             form:"format"`
+		Status           string   `json:"status"             form:"status"`
+		Deleted          *bool    `json:"deleted"            form:"deleted"`
 		MinSize          int64    `json:"min_size"           form:"min_size"`
 		MaxSize          int64    `json:"max_size"           form:"max_size"`
 		Width            int      `json:"width"              form:"width"`
@@ -181,6 +187,45 @@ type (
 		Tasks []*Task      `json:"tasks"`
 	}
 
+	AssetChunkUploadInitRequest struct {
+		Filename    string   `json:"filename"     binding:"required"`
+		Size        int64    `json:"size"         binding:"required"`
+		Checksum    string   `json:"checksum"     binding:"required"`
+		ChunkSize   int64    `json:"chunk_size"   binding:"required"`
+		TotalChunks int      `json:"total_chunks" binding:"required"`
+		TagNames    []string `json:"tag_names"`
+		SourceType  string   `json:"source_type"`
+	}
+
+	AssetChunkUploadInitResponse struct {
+		Checksum       string `json:"checksum"`
+		UploadedChunks []int  `json:"uploaded_chunks"`
+		ChunkSize      int64  `json:"chunk_size"`
+		TotalChunks    int    `json:"total_chunks"`
+		ExpiresHours   int    `json:"expires_hours"`
+	}
+
+	AssetChunkUploadPartResponse struct {
+		Checksum string `json:"checksum"`
+		Index    int    `json:"index"`
+		Size     int64  `json:"size"`
+	}
+
+	AssetChunkUploadCompleteRequest struct {
+		Filename    string   `json:"filename"     binding:"required"`
+		Size        int64    `json:"size"         binding:"required"`
+		Checksum    string   `json:"checksum"     binding:"required"`
+		ChunkSize   int64    `json:"chunk_size"   binding:"required"`
+		TotalChunks int      `json:"total_chunks" binding:"required"`
+		TagNames    []string `json:"tag_names"`
+		SourceType  string   `json:"source_type"`
+	}
+
+	AssetChunkUploadCancelResponse struct {
+		Checksum string `json:"checksum"`
+		Deleted  bool   `json:"deleted"`
+	}
+
 	AssetUpdateRequest struct {
 		ID          string          `json:"id"`
 		Name        *string         `json:"name"`
@@ -192,6 +237,33 @@ type (
 		Description *string         `json:"description"`
 	}
 )
+
+func (r *AssetSearchRequest) PostBind() error {
+	return r.Query.PostBind()
+}
+
+func (r *AssetListRequest) PostBind() error {
+	r.Tags = splitListValues(r.Tags)
+	r.SearchFields = splitListValues(r.SearchFields)
+	r.Status = strings.ToLower(strings.TrimSpace(r.Status))
+	return nil
+}
+
+func splitListValues(values []string) []string {
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		parts := strings.FieldsFunc(value, func(r rune) bool {
+			return r == ',' || r == '，' || r == ';' || r == '；' || r == '\n' || r == '\t'
+		})
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				result = append(result, part)
+			}
+		}
+	}
+	return result
+}
 
 type (
 	AssetGroupCreateRequest struct {

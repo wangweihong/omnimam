@@ -185,6 +185,8 @@ type AssetStore interface {
 	Get(ctx context.Context, id string) (*iapiserver.Asset, error)
 	Add(ctx context.Context, data *iapiserver.Asset) (*iapiserver.Asset, error)
 	Update(ctx context.Context, data *iapiserver.Asset) (*iapiserver.Asset, error)
+	// Delete marks the asset as deleted. It does not remove asset objects, thumbnails, or relation rows.
+	Delete(ctx context.Context, id string) error
 }
 
 type AssetThumbnailStore interface {
@@ -192,6 +194,8 @@ type AssetThumbnailStore interface {
 	ListByAssetIDs(ctx context.Context, assetIDs []string) ([]*iapiserver.AssetThumbnail, error)
 	Add(ctx context.Context, data *iapiserver.AssetThumbnail) (*iapiserver.AssetThumbnail, error)
 	Update(ctx context.Context, data *iapiserver.AssetThumbnail) (*iapiserver.AssetThumbnail, error)
+	// DeleteByAsset removes thumbnail metadata for one asset after the preview object is removed.
+	DeleteByAsset(ctx context.Context, assetID string) error
 }
 
 type TagStore interface {
@@ -203,6 +207,8 @@ type TagStore interface {
 type AssetTagStore interface {
 	Replace(ctx context.Context, assetID string, tags []*iapiserver.Tag, source string) error
 	ListTagNames(ctx context.Context, assetID string) ([]string, error)
+	// DeleteByAsset removes tag links for one asset without deleting reusable tag records.
+	DeleteByAsset(ctx context.Context, assetID string) error
 }
 
 type AssetGroupStore interface {
@@ -211,10 +217,14 @@ type AssetGroupStore interface {
 
 type AssetGroupMemberStore interface {
 	BatchAdd(ctx context.Context, members []*iapiserver.AssetGroupMember) ([]*iapiserver.AssetGroupMember, error)
+	// DeleteByAsset removes an asset from all groups before the asset metadata is deleted.
+	DeleteByAsset(ctx context.Context, assetID string) error
 }
 
 type AssetRelationStore interface {
 	Add(ctx context.Context, data *iapiserver.AssetRelation) (*iapiserver.AssetRelation, error)
+	// DeleteByAsset removes derivation relations where the asset is either source or target.
+	DeleteByAsset(ctx context.Context, assetID string) error
 }
 
 type TaskStore interface {
