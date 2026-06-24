@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"image"
 	_ "image/gif"
@@ -17,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,11 +24,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
+	"github.com/wangweihong/gotoolbox/pkg/httpcli"
+	"github.com/wangweihong/gotoolbox/pkg/sets"
 
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/omnimam/apis/imachinery"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
 	"github.com/wangweihong/omnimam/internal/pkg/code"
+	"github.com/wangweihong/omnimam/pkg/general"
 )
 
 type PlatformSrv interface {
@@ -37,6 +40,10 @@ type PlatformSrv interface {
 	ProviderList(ctx context.Context, req *iapiserver.ProviderListRequest) (*iapiserver.ProviderListResponse, error)
 	ProviderCreate(ctx context.Context, req *iapiserver.ProviderCreateRequest) (*iapiserver.Provider, error)
 	ProviderUpdate(ctx context.Context, req *iapiserver.ProviderUpdateRequest) (*iapiserver.Provider, error)
+	// ProviderPresetList returns built-in model service presets and their dynamic API setting schema.
+	ProviderPresetList(ctx context.Context) (*iapiserver.ProviderPresetListResponse, error)
+	// ProviderPresetInstall creates or updates one provider from a preset without writing credentials.
+	ProviderPresetInstall(ctx context.Context, presetKey string) (*iapiserver.Provider, error)
 	// ProviderTest checks OpenAI-compatible provider reachability using saved data plus optional overrides.
 	ProviderTest(ctx context.Context, req *iapiserver.ProviderTestRequest) (*iapiserver.ProviderTestResponse, error)
 	ProviderModelList(
@@ -231,18 +238,17 @@ func (s *platformService) ProviderCreate(
 	ctx context.Context,
 	req *iapiserver.ProviderCreateRequest,
 ) (*iapiserver.Provider, error) {
-	enabled := true
-	if req.Enabled != nil {
-		enabled = *req.Enabled
-	}
 	provider := &iapiserver.Provider{
 		Type:          req.Type,
-		Enabled:       enabled,
+		Enabled:       general.FallbackIfNil(req.Enabled, true),
 		BaseURL:       req.BaseURL,
 		AuthType:      req.AuthType,
 		CredentialRef: req.CredentialRef,
+		PresetKey:     req.PresetKey,
+		Config:        req.Config,
 	}
 	provider.Name = req.Name
+	applyProviderPresetDefaults(provider)
 	if provider.AuthType == "" && provider.CredentialRef != "" {
 		provider.AuthType = iapiserver.ProviderAuthTypeAPIKey
 	}
@@ -251,7 +257,7 @@ func (s *platformService) ProviderCreate(
 	}
 	created, err := s.store.Providers().Add(ctx, provider)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	return sanitizeProvider(created), nil
 }
@@ -264,29 +270,66 @@ func (s *platformService) ProviderUpdate(
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	if req.Name != nil {
-		provider.Name = *req.Name
-	}
-	if req.Type != nil {
-		provider.Type = *req.Type
-	}
-	if req.Enabled != nil {
-		provider.Enabled = *req.Enabled
-	}
-	if req.BaseURL != nil {
-		provider.BaseURL = *req.BaseURL
-	}
-	if req.AuthType != nil {
-		provider.AuthType = *req.AuthType
-	}
-	if req.CredentialRef != nil {
-		provider.CredentialRef = *req.CredentialRef
-	}
+
+	provider.Name = general.FallbackIfNil(req.Name, provider.Name)
+	provider.Type = general.FallbackIfNil(req.Type, provider.Type)
+	provider.Enabled = general.FallbackIfNil(req.Enabled, provider.Enabled)
+	provider.BaseURL = general.FallbackIfNil(req.BaseURL, provider.BaseURL)
+	provider.AuthType = general.FallbackIfNil(req.AuthType, provider.AuthType)
+	provider.CredentialRef = general.FallbackIfNil(req.CredentialRef, provider.CredentialRef)
+	provider.PresetKey = general.FallbackIfNil(req.PresetKey, provider.PresetKey)
+	provider.Config = general.FallbackIfNil(req.Config, provider.Config)
+
 	updated, err := s.store.Providers().Update(ctx, provider)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	return sanitizeProvider(updated), nil
+}
+
+func (s *platformService) ProviderPresetList(ctx context.Context) (*iapiserver.ProviderPresetListResponse, error) {
+	return &iapiserver.ProviderPresetListResponse{Presets: providerPresets()}, nil
+}
+
+func (s *platformService) ProviderPresetInstall(ctx context.Context, presetKey string) (*iapiserver.Provider, error) {
+	preset := providerPresetByKey(presetKey)
+	if preset == nil {
+		return nil, errors.NewStatusF(code.ErrValidation, "provider preset %s not found", presetKey)
+	}
+	existing, _, err := s.store.Providers().List(ctx, &iapiserver.ProviderListRequest{})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	for _, provider := range existing {
+		if provider.PresetKey == preset.Key {
+			provider.Name = preset.Name
+			provider.Type = preset.Type
+			provider.BaseURL = preset.BaseURL
+			provider.AuthType = preset.AuthType
+			if provider.Config == nil {
+				provider.Config = providerPresetConfigDefaults(preset)
+			}
+			updated, err := s.store.Providers().Update(ctx, provider)
+			if err != nil {
+				return nil, errors.WithStack(err)
+			}
+			return sanitizeProvider(updated), nil
+		}
+	}
+	provider := &iapiserver.Provider{
+		Type:      preset.Type,
+		Enabled:   false,
+		BaseURL:   preset.BaseURL,
+		AuthType:  preset.AuthType,
+		PresetKey: preset.Key,
+		Config:    providerPresetConfigDefaults(preset),
+	}
+	provider.Name = preset.Name
+	created, err := s.store.Providers().Add(ctx, provider)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return sanitizeProvider(created), nil
 }
 
 func (s *platformService) ProviderTest(
@@ -299,7 +342,7 @@ func (s *platformService) ProviderTest(
 	}
 	started := time.Now()
 	if _, err := fetchOpenAICompatibleModels(ctx, provider); err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	return &iapiserver.ProviderTestResponse{
 		OK:        true,
@@ -330,9 +373,13 @@ func (s *platformService) ProviderModelCreate(
 	model := &iapiserver.ProviderModel{
 		ProviderID:    req.ProviderID,
 		Model:         req.Model,
+		EndpointType:  req.EndpointType,
+		GroupName:     req.GroupName,
 		Capabilities:  req.Capabilities,
+		ModelTypes:    req.ModelTypes,
 		Enabled:       enabled,
 		DefaultParams: req.DefaultParams,
+		Pricing:       req.Pricing,
 	}
 	model.Name = req.Name
 	return s.store.ProviderModels().Add(ctx, model)
@@ -346,21 +393,16 @@ func (s *platformService) ProviderModelUpdate(
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	if req.Name != nil {
-		model.Name = *req.Name
-	}
-	if req.Model != nil {
-		model.Model = *req.Model
-	}
-	if req.Capabilities != nil {
-		model.Capabilities = *req.Capabilities
-	}
-	if req.Enabled != nil {
-		model.Enabled = *req.Enabled
-	}
-	if req.DefaultParams != nil {
-		model.DefaultParams = *req.DefaultParams
-	}
+	model.Name = general.FallbackIfNil(req.Name, model.Name)
+	model.Model = general.FallbackIfNil(req.Model, model.Model)
+	model.EndpointType = general.FallbackIfNil(req.EndpointType, model.EndpointType)
+	model.GroupName = general.FallbackIfNil(req.GroupName, model.GroupName)
+	model.Capabilities = general.FallbackIfNil(req.Capabilities, model.Capabilities)
+	model.ModelTypes = general.FallbackIfNil(req.ModelTypes, model.ModelTypes)
+	model.Enabled = general.FallbackIfNil(req.Enabled, model.Enabled)
+	model.DefaultParams = general.FallbackIfNil(req.DefaultParams, model.DefaultParams)
+	model.Pricing = general.FallbackIfNil(req.Pricing, model.Pricing)
+
 	return s.store.ProviderModels().Update(ctx, model)
 }
 
@@ -374,11 +416,11 @@ func (s *platformService) ProviderModelSync(
 	}
 	remoteModels, err := fetchOpenAICompatibleModels(ctx, provider)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	existingResp, err := s.ProviderModelList(ctx, &iapiserver.ProviderModelListRequest{ProviderID: provider.ID})
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	existingByModel := map[string]*iapiserver.ProviderModel{}
 	for _, item := range existingResp.Models {
@@ -393,7 +435,8 @@ func (s *platformService) ProviderModelSync(
 		}
 		if existing := existingByModel[remote]; existing != nil {
 			nextCaps := appendCapability(existing.Capabilities, iapiserver.CapabilityLLMChat)
-			if existing.Name == remote && stringSliceEqual(existing.Capabilities, nextCaps) {
+			changed := applyPresetModelDefaults(provider, existing)
+			if existing.Name == remote && sets.NewString(existing.Capabilities...).Equal(sets.NewString(nextCaps...)) && !changed {
 				skipped++
 				continue
 			}
@@ -413,6 +456,7 @@ func (s *platformService) ProviderModelSync(
 			DefaultParams: map[string]any{},
 		}
 		model.Name = remote
+		applyPresetModelDefaults(provider, model)
 		if _, err := s.store.ProviderModels().Add(ctx, model); err != nil {
 			return nil, errors.WithStack(err)
 		}
@@ -420,7 +464,7 @@ func (s *platformService) ProviderModelSync(
 	}
 	models, err := s.ProviderModelList(ctx, &iapiserver.ProviderModelListRequest{ProviderID: provider.ID})
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	return &iapiserver.ProviderModelSyncResponse{
 		Models:  models.Models,
@@ -462,6 +506,167 @@ func (s *platformService) SystemLLMConfigUpsert(
 	return s.SystemLLMConfigList(ctx)
 }
 
+func providerPresets() []*iapiserver.ProviderPreset {
+	commonSettings := []iapiserver.ProviderAPISetting{
+		{Key: "array_message_content", Label: "支持数组格式的 message content", Type: "boolean", Default: true},
+		{Key: "developer_message", Label: "支持 Developer Message", Type: "boolean", Default: false},
+		{Key: "stream_options", Label: "支持 stream_options", Type: "boolean", Default: true},
+		{Key: "service_tier", Label: "支持 service_tier", Type: "boolean", Default: false},
+		{Key: "enable_thinking", Label: "支持 enable_thinking", Type: "boolean", Default: false},
+		{Key: "verbosity", Label: "支持 verbosity", Type: "boolean", Default: false},
+	}
+	return []*iapiserver.ProviderPreset{
+		{
+			Key:               "deepseek",
+			Name:              "DeepSeek",
+			Type:              iapiserver.ProviderTypeDeepSeek,
+			BaseURL:           "https://api.deepseek.com",
+			AuthType:          iapiserver.ProviderAuthTypeAPIKey,
+			Icon:              "d",
+			APISettingsSchema: commonSettings,
+			ModelTypeRules: []iapiserver.ProviderModelTypeRule{
+				{Contains: []string{"reasoner", "r1"}, ModelTypes: []string{"reasoning"}, GroupName: "deepseek", EndpointType: "chat"},
+			},
+		},
+		{
+			Key:               "qwen",
+			Name:              "通义千问",
+			Type:              iapiserver.ProviderTypeOpenAICompatible,
+			BaseURL:           "https://dashscope.aliyuncs.com/compatible-mode",
+			AuthType:          iapiserver.ProviderAuthTypeAPIKey,
+			Icon:              "q",
+			APISettingsSchema: commonSettings,
+			ModelTypeRules: []iapiserver.ProviderModelTypeRule{
+				{Contains: []string{"vl", "vision"}, ModelTypes: []string{"vision"}, GroupName: "qwen", EndpointType: "chat"},
+				{Contains: []string{"qwq", "reason", "thinking"}, ModelTypes: []string{"reasoning"}, GroupName: "qwen", EndpointType: "chat"},
+				{Contains: []string{"embedding", "embed"}, ModelTypes: []string{"embedding"}, GroupName: "qwen", EndpointType: "embeddings"},
+			},
+		},
+		{
+			Key:               "openrouter",
+			Name:              "OpenRouter",
+			Type:              iapiserver.ProviderTypeOpenAICompatible,
+			BaseURL:           "https://openrouter.ai/api",
+			AuthType:          iapiserver.ProviderAuthTypeAPIKey,
+			Icon:              "o",
+			APISettingsSchema: commonSettings,
+			ModelTypeRules: []iapiserver.ProviderModelTypeRule{
+				{Contains: []string{"vision", "vl"}, ModelTypes: []string{"vision"}, GroupName: "openrouter", EndpointType: "chat"},
+				{Contains: []string{"web", "search"}, ModelTypes: []string{"web"}, GroupName: "openrouter", EndpointType: "chat"},
+				{Contains: []string{"tool"}, ModelTypes: []string{"tool"}, GroupName: "openrouter", EndpointType: "chat"},
+			},
+		},
+		{
+			Key:               "siliconflow",
+			Name:              "硅基流动",
+			Type:              iapiserver.ProviderTypeOpenAICompatible,
+			BaseURL:           "https://api.siliconflow.cn",
+			AuthType:          iapiserver.ProviderAuthTypeAPIKey,
+			Icon:              "s",
+			APISettingsSchema: commonSettings,
+			ModelTypeRules: []iapiserver.ProviderModelTypeRule{
+				{Contains: []string{"vl", "vision"}, ModelTypes: []string{"vision"}, GroupName: "siliconflow", EndpointType: "chat"},
+				{Contains: []string{"rerank"}, ModelTypes: []string{"rerank"}, GroupName: "siliconflow", EndpointType: "rerank"},
+				{Contains: []string{"embedding", "embed"}, ModelTypes: []string{"embedding"}, GroupName: "siliconflow", EndpointType: "embeddings"},
+			},
+		},
+	}
+}
+
+func providerPresetByKey(key string) *iapiserver.ProviderPreset {
+	for _, preset := range providerPresets() {
+		if preset.Key == key {
+			return preset
+		}
+	}
+	return nil
+}
+
+func providerPresetConfigDefaults(preset *iapiserver.ProviderPreset) map[string]any {
+	config := map[string]any{}
+	if preset == nil {
+		return config
+	}
+	for _, setting := range preset.APISettingsSchema {
+		config[setting.Key] = setting.Default
+	}
+	return config
+}
+
+func applyProviderPresetDefaults(provider *iapiserver.Provider) {
+	if provider == nil || provider.PresetKey == "" {
+		return
+	}
+	preset := providerPresetByKey(provider.PresetKey)
+	if preset == nil {
+		return
+	}
+	if provider.Name == "" {
+		provider.Name = preset.Name
+	}
+	if provider.Type == "" {
+		provider.Type = preset.Type
+	}
+	if provider.BaseURL == "" {
+		provider.BaseURL = preset.BaseURL
+	}
+	if provider.AuthType == "" {
+		provider.AuthType = preset.AuthType
+	}
+	if provider.Config == nil {
+		provider.Config = providerPresetConfigDefaults(preset)
+	}
+}
+
+func applyPresetModelDefaults(provider *iapiserver.Provider, model *iapiserver.ProviderModel) bool {
+	if provider == nil || model == nil {
+		return false
+	}
+	changed := false
+	if model.EndpointType == "" {
+		model.EndpointType = "chat"
+		changed = true
+	}
+	if model.GroupName == "" {
+		model.GroupName = provider.Name
+		changed = true
+	}
+	preset := providerPresetByKey(provider.PresetKey)
+	if preset == nil {
+		return changed
+	}
+	lowerModel := strings.ToLower(model.Model)
+	for _, rule := range preset.ModelTypeRules {
+		if !ruleMatchesModel(rule, lowerModel) {
+			continue
+		}
+		if rule.EndpointType != "" && model.EndpointType == "chat" {
+			model.EndpointType = rule.EndpointType
+			changed = true
+		}
+		if rule.GroupName != "" && model.GroupName == provider.Name {
+			model.GroupName = rule.GroupName
+			changed = true
+		}
+		for _, modelType := range rule.ModelTypes {
+			if sets.NewString(model.ModelTypes...).Has(modelType) {
+				model.ModelTypes = append(model.ModelTypes, modelType)
+				changed = true
+			}
+		}
+	}
+	return changed
+}
+
+func ruleMatchesModel(rule iapiserver.ProviderModelTypeRule, lowerModel string) bool {
+	for _, token := range rule.Contains {
+		if strings.Contains(lowerModel, strings.ToLower(token)) {
+			return true
+		}
+	}
+	return false
+}
+
 func sanitizeProvider(provider *iapiserver.Provider) *iapiserver.Provider {
 	if provider == nil {
 		return nil
@@ -485,15 +690,11 @@ func (s *platformService) providerWithOverrides(
 		return nil, errors.WithStack(err)
 	}
 	ret := *provider
-	if strings.TrimSpace(baseURL) != "" {
-		ret.BaseURL = baseURL
-	}
-	if strings.TrimSpace(authType) != "" {
-		ret.AuthType = authType
-	}
-	if strings.TrimSpace(credentialRef) != "" && credentialRef != "configured" {
-		ret.CredentialRef = credentialRef
-	}
+	ret.BaseURL = general.FallbackIfEmpty(strings.TrimSpace(baseURL), ret.BaseURL)
+	ret.AuthType = general.FallbackIfEmpty(strings.TrimSpace(authType), ret.AuthType)
+	ret.CredentialRef = general.FallbackIfMatch(credentialRef, ret.CredentialRef, func(credentialRef string) bool {
+		return strings.TrimSpace(credentialRef) != "" && credentialRef != "configured"
+	})
 	return &ret, nil
 }
 
@@ -504,31 +705,27 @@ func fetchOpenAICompatibleModels(ctx context.Context, provider *iapiserver.Provi
 		return nil, errors.NewStatusF(code.ErrProviderUnsupported, "provider type %s is unsupported", provider.Type)
 	}
 	endpoint := openAICompatibleEndpoint(provider.BaseURL, "/models")
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return nil, errors.WrapStatus(err, code.ErrHTTPClientGenerateError)
-	}
+	builder := httpcli.NewHttpRequestBuilder().
+		GET().
+		WithTimeout(15 * time.Second).
+		WithEndpoint(endpoint)
 	if apiKey := firstProviderAPIKey(provider.CredentialRef); apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
+		builder.AddHeaderParam("Authorization", "Bearer "+apiKey)
 	}
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Do(req)
+
+	resp, err := builder.Build().Invoke()
 	if err != nil {
 		return nil, errors.WrapStatus(err, code.ErrProviderUnavailable)
 	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.WrapStatus(err, code.ErrProviderResponseParseError)
-	}
-	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+
+	if resp.GetStatusCode() == http.StatusUnauthorized || resp.GetStatusCode() == http.StatusForbidden {
 		return nil, errors.NewStatusF(code.ErrProviderUnauthorized, "provider authentication failed")
 	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if resp.GetStatusCode() < 200 || resp.GetStatusCode() >= 300 {
 		return nil, errors.NewStatusF(
 			code.ErrProviderUnavailable,
 			"provider request failed with status %d",
-			resp.StatusCode,
+			resp.GetStatusCode(),
 		)
 	}
 	var decoded struct {
@@ -536,7 +733,7 @@ func fetchOpenAICompatibleModels(ctx context.Context, provider *iapiserver.Provi
 			ID string `json:"id"`
 		} `json:"data"`
 	}
-	if err := json.Unmarshal(body, &decoded); err != nil {
+	if err := resp.Decode(&decoded); err != nil {
 		return nil, errors.WrapStatus(err, code.ErrProviderResponseParseError)
 	}
 	models := make([]string, 0, len(decoded.Data))
@@ -578,10 +775,8 @@ func firstProviderAPIKey(credentialRef string) string {
 }
 
 func appendCapability(capabilities []string, capability string) []string {
-	for _, item := range capabilities {
-		if item == capability {
-			return capabilities
-		}
+	if slices.Contains(capabilities, capability) {
+		return capabilities
 	}
 	return append(capabilities, capability)
 }
@@ -1022,21 +1217,13 @@ func (s *platformService) AssetUpdate(
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	if req.Name != nil {
-		asset.Name = *req.Name
-	}
-	if req.SourceType != nil {
-		asset.SourceType = *req.SourceType
-	}
-	if req.SourceRef != nil {
-		asset.SourceRef = *req.SourceRef
-	}
-	if req.Metadata != nil {
-		asset.Metadata = *req.Metadata
-	}
-	if req.Description != nil {
-		asset.Description = *req.Description
-	}
+
+	asset.Name = general.FallbackIfNil(req.Name, asset.Name)
+	asset.SourceType = general.FallbackIfNil(req.SourceType, asset.SourceType)
+	asset.SourceRef = general.FallbackIfNil(req.SourceRef, asset.SourceRef)
+	asset.Metadata = general.FallbackIfNil(req.Metadata, asset.Metadata)
+	asset.Description = general.FallbackIfNil(req.Description, asset.Description)
+
 	updated, err := s.store.AssetsV2().Update(ctx, asset)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -1407,10 +1594,8 @@ func defaultPermissions() []string {
 }
 
 func appendUnique(items []string, item string) []string {
-	for _, existing := range items {
-		if existing == item {
-			return items
-		}
+	if sets.NewString(items...).Has(item) {
+		return items
 	}
 	return append(items, item)
 }

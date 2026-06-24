@@ -7,6 +7,7 @@ import (
 
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/omnimam/internal/apiserver/store"
+	"github.com/wangweihong/omnimam/pkg/general"
 )
 
 type CanvasSrv interface {
@@ -353,31 +354,14 @@ func (s *canvasService) CanvasUpdateMeta(
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-
-	if req.Title != nil {
-		c.Title = *req.Title
-	}
-	if req.Icon != nil {
-		c.Icon = *req.Icon
-	}
-	if req.Owner != nil {
-		c.Owner = *req.Owner
-	}
-	if req.Color != nil {
-		c.Color = *req.Color
-	}
-	if req.Pinned != nil {
-		c.Pinned = *req.Pinned
-	}
-	if req.Project != nil {
-		c.ProjectID = *req.Project
-	}
-	if req.BoardX != nil {
-		c.BoardX = *req.BoardX
-	}
-	if req.BoardY != nil {
-		c.BoardY = *req.BoardY
-	}
+	c.Title = general.FallbackIfNil(req.Title, c.Title)
+	c.Icon = general.FallbackIfNil(req.Icon, c.Icon)
+	c.Owner = general.FallbackIfNil(req.Owner, c.Owner)
+	c.Color = general.FallbackIfNil(req.Color, c.Color)
+	c.Pinned = general.FallbackIfNil(req.Pinned, c.Pinned)
+	c.ProjectID = general.FallbackIfNil(req.Project, c.ProjectID)
+	c.BoardX = general.FallbackIfNil(req.BoardX, c.BoardX)
+	c.BoardY = general.FallbackIfNil(req.BoardY, c.BoardY)
 
 	updated, err := s.store.Canvases().Update(ctx, c)
 	if err != nil {
@@ -476,11 +460,11 @@ func (s *canvasService) CanvasWorkflowExport(
 
 	nodes := req.Nodes
 	if nodes == nil {
-		nodes = c.Extend["nodes"]
+		nodes = c.Extend.Get("nodes")
 	}
 	connections := req.Connections
 	if connections == nil {
-		connections = c.Extend["connections"]
+		connections = c.Extend.Get("connections")
 	}
 	return &iapiserver.CanvasWorkflowExportResponse{
 		Workflow: iapiserver.CanvasWorkflowPayload{

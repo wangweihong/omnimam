@@ -41,6 +41,22 @@ func (pc *PlatformController) CreateProvider(c *gin.Context) {
 	})
 }
 
+// ListProviderPresets returns built-in model service presets and dynamic API setting schemas.
+// It only returns public preset metadata and never returns user credentials or creates async tasks.
+func (pc *PlatformController) ListProviderPresets(c *gin.Context) {
+	core.Run(c, nil, func(_ any) (any, error) {
+		return pc.srv.Platforms().ProviderPresetList(c)
+	})
+}
+
+// InstallProviderPreset creates or updates a disabled Provider from one preset key.
+// It initializes base endpoint metadata only; credentials are not written by this endpoint.
+func (pc *PlatformController) InstallProviderPreset(c *gin.Context) {
+	req := &iapiserver.ProviderPresetInstallRequest{PresetKey: c.Param("preset_key")}
+	ret, err := pc.srv.Platforms().ProviderPresetInstall(c, req.PresetKey)
+	core.WriteResponse(c, err, ret)
+}
+
 func (pc *PlatformController) UpdateProvider(c *gin.Context) {
 	req := &iapiserver.ProviderUpdateRequest{ID: c.Param("provider_id")}
 	if err := c.ShouldBindJSON(req); err != nil {

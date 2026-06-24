@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/wangweihong/gotoolbox/pkg/errors"
+	"k8s.io/gengo/examples/set-gen/sets"
 
 	"github.com/wangweihong/omnimam/apis/iapiserver"
 	"github.com/wangweihong/omnimam/apis/imachinery"
@@ -111,5 +112,60 @@ func TestFetchOpenAICompatibleModelsUnauthorized(t *testing.T) {
 	if status := errors.ToStatus(err); status.Code != code.ErrProviderUnauthorized ||
 		status.HTTPStatus != http.StatusUnauthorized {
 		t.Fatalf("status = %#v", status)
+	}
+}
+
+func TestProviderPresetsIncludeAPISettings(t *testing.T) {
+	presets := providerPresets()
+	if len(presets) < 4 {
+		t.Fatalf("preset count = %d", len(presets))
+	}
+	seen := map[string]bool{}
+	for _, preset := range presets {
+		seen[preset.Key] = true
+		if preset.Name == "" || preset.Type == "" || preset.BaseURL == "" || preset.AuthType == "" {
+			t.Fatalf("incomplete preset = %#v", preset)
+		}
+		if len(preset.APISettingsSchema) == 0 {
+			t.Fatalf("missing api setting schema for %s", preset.Key)
+		}
+	}
+	for _, key := range []string{"deepseek", "qwen", "openrouter", "siliconflow"} {
+		if !seen[key] {
+			t.Fatalf("missing preset %s", key)
+		}
+	}
+}
+
+func TestApplyPresetModelDefaults(t *testing.T) {
+	provider := &iapiserver.Provider{PresetKey: "qwen"}
+	provider.Name = "通义千问"
+
+	tests := []struct {
+		name         string
+		model        string
+		modelType    string
+		endpointType string
+	}{
+		{name: "vision model", model: "qwen-vl-max", modelType: "vision", endpointType: "chat"},
+		{name: "reasoning model", model: "qwq-plus", modelType: "reasoning", endpointType: "chat"},
+		{name: "embedding model", model: "text-embedding-v3", modelType: "embedding", endpointType: "embeddings"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model := &iapiserver.ProviderModel{Model: tt.model}
+			if !applyPresetModelDefaults(provider, model) {
+				t.Fatal("expected defaults to change model")
+			}
+			if model.GroupName != "qwen" {
+				t.Fatalf("group name = %q", model.GroupName)
+			}
+			if model.EndpointType != tt.endpointType {
+				t.Fatalf("endpoint type = %q", model.EndpointType)
+			}
+			if !sets.NewString(model.ModelTypes...).Has(tt.modelType) {
+				t.Fatalf("model types = %#v", model.ModelTypes)
+			}
+		})
 	}
 }

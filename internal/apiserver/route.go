@@ -51,6 +51,8 @@ func installPlatformApis(rg *gin.RouterGroup, storeIns store.Factory) {
 	platformController := platformctrl.NewController(storeIns)
 
 	rg.GET("/me", platformController.Me)
+	rg.GET("/provider-presets", platformController.ListProviderPresets)
+	rg.POST("/provider-presets/:preset_key/install", platformController.InstallProviderPreset)
 
 	providers := rg.Group("/providers")
 	{
