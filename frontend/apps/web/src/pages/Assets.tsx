@@ -38,6 +38,13 @@ type ContextMenuState = {
   y: number;
 };
 
+type HoverAssetState = ContextMenuState;
+
+type PreviewFrames = {
+  frames: string[];
+  aspectRatio: number;
+};
+
 type UploadState = {
   active: boolean;
   filename: string;
@@ -54,7 +61,7 @@ export function Assets({ canWrite }: { canWrite: boolean }) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [infoAsset, setInfoAsset] = useState<AssetRecord | null>(null);
   const [previewAsset, setPreviewAsset] = useState<AssetRecord | null>(null);
-  const [hoverAsset, setHoverAsset] = useState<AssetRecord | null>(null);
+  const [hoverAsset, setHoverAsset] = useState<HoverAssetState | null>(null);
   const [mediaType, setMediaType] = useState("");
   const [format, setFormat] = useState("");
   const [sourceType, setSourceType] = useState("");
@@ -308,14 +315,11 @@ export function Assets({ canWrite }: { canWrite: boolean }) {
           >
             <span
               className="asset-row-thumb"
-              onMouseEnter={() => setHoverAsset(asset)}
+              onMouseEnter={(event) => setHoverAsset({ asset, x: event.clientX, y: event.clientY })}
+              onMouseMove={(event) => setHoverAsset({ asset, x: event.clientX, y: event.clientY })}
               onMouseLeave={() => setHoverAsset(null)}
             >
-              {asset.thumbnail?.status === "ready" ? (
-                <img src={assetThumbnailURL(asset.id)} alt="" />
-              ) : (
-                <span className="default-thumb"><FileImage size={22} /></span>
-              )}
+              <AssetThumbnailView asset={asset} />
             </span>
             <span className="asset-row-meta">
               <strong>{asset.name || asset.id}</strong>
@@ -327,7 +331,7 @@ export function Assets({ canWrite }: { canWrite: boolean }) {
         {!assets.length && !busy ? <div className="empty asset-empty">暂无资产</div> : null}
       </div>
 
-      {hoverAsset ? <AssetHoverPreview asset={hoverAsset} /> : null}
+      {hoverAsset ? <AssetHoverPreview preview={hoverAsset} /> : null}
 
       {contextMenu ? (
         <div className="asset-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}>
@@ -403,6 +407,8 @@ function AssetPreview({ asset, onClose }: { asset: AssetRecord; onClose: () => v
       <div className="preview-body">
         {isVideoAsset(asset) ? (
           <video src={assetContentURL(asset.id)} controls autoPlay />
+        ) : isAudioAsset(asset) ? (
+          <audio src={assetContentURL(asset.id)} controls autoPlay />
         ) : isTextAsset(asset) ? (
           <pre>{error || text || "loading..."}</pre>
         ) : isImageAsset(asset) ? (
@@ -415,17 +421,55 @@ function AssetPreview({ asset, onClose }: { asset: AssetRecord; onClose: () => v
   );
 }
 
-function AssetHoverPreview({ asset }: { asset: AssetRecord }) {
+function AssetThumbnailView({ asset }: { asset: AssetRecord }) {
+  if (isVideoAsset(asset) || isGifAsset(asset)) {
+    return <GeneratedMediaThumb asset={asset} />;
+  }
+  if (asset.thumbnail?.status === "ready") {
+    return <img src={assetThumbnailURL(asset.id)} alt="" />;
+  }
+  return <span className="default-thumb"><FileImage size={22} /></span>;
+}
+
+function GeneratedMediaThumb({ asset }: { asset: AssetRecord }) {
+  const [src, setSrc] = useState("");
+
+  useEffect(() => {
+    let canceled = false;
+    const extract = () => isGifAsset(asset) ? extractGifFrames(asset, 1) : extractVideoFrames(asset, 5);
+    extract()
+      .then((result) => {
+        if (!canceled) setSrc(result.frames[0] || "");
+      })
+      .catch(() => {
+        if (!canceled) setSrc("");
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [asset.id]);
+
+  if (src) return <img src={src} alt="" />;
+  if (asset.thumbnail?.status === "ready") return <img src={assetThumbnailURL(asset.id)} alt="" />;
+  return <span className="default-thumb"><FileImage size={22} /></span>;
+}
+
+function AssetHoverPreview({ preview }: { preview: HoverAssetState }) {
+  const { asset } = preview;
+  const fallbackAspect = asset.width && asset.height ? asset.width / asset.height : isVideoAsset(asset) ? 16 / 9 : 1;
+  const [aspectRatio, setAspectRatio] = useState(fallbackAspect);
+  const style = hoverPreviewStyle(preview.x, preview.y, aspectRatio);
+
   if (isVideoAsset(asset) || isGifAsset(asset)) {
     return (
-      <div className="asset-hover-preview animated-frame-preview">
-        <AnimatedFramePreview asset={asset} />
+      <div className="asset-hover-preview animated-frame-preview" style={style}>
+        <AnimatedFramePreview asset={asset} onAspectRatio={setAspectRatio} />
       </div>
     );
   }
   if (asset.thumbnail?.status === "ready") {
     return (
-      <div className="asset-hover-preview">
+      <div className="asset-hover-preview" style={style}>
         <img src={assetThumbnailURL(asset.id)} alt="" />
       </div>
     );
@@ -433,17 +477,18 @@ function AssetHoverPreview({ asset }: { asset: AssetRecord }) {
   return null;
 }
 
-function AnimatedFramePreview({ asset }: { asset: AssetRecord }) {
+function AnimatedFramePreview({ asset, onAspectRatio }: { asset: AssetRecord; onAspectRatio: (value: number) => void }) {
   const [frames, setFrames] = useState<string[]>([]);
   const [active, setActive] = useState(0);
 
   useEffect(() => {
     let canceled = false;
     async function extractFrames() {
-      const nextFrames = isGifAsset(asset) ? await extractGifFrames(asset) : await extractVideoFrames(asset);
+      const result = isGifAsset(asset) ? await extractGifFrames(asset) : await extractVideoFrames(asset);
       if (!canceled) {
         setActive(0);
-        setFrames(nextFrames);
+        setFrames(result.frames);
+        onAspectRatio(result.aspectRatio);
       }
     }
     extractFrames().catch(() => {
@@ -456,7 +501,7 @@ function AnimatedFramePreview({ asset }: { asset: AssetRecord }) {
 
   useEffect(() => {
     if (frames.length <= 1) return undefined;
-    const timer = window.setInterval(() => setActive((value) => (value + 1) % frames.length), 220);
+    const timer = window.setInterval(() => setActive((value) => (value + 1) % frames.length), 1000);
     return () => window.clearInterval(timer);
   }, [frames.length]);
 
@@ -465,53 +510,87 @@ function AnimatedFramePreview({ asset }: { asset: AssetRecord }) {
   return src ? <img src={src} alt="" /> : <span className="default-thumb">loading preview...</span>;
 }
 
-async function extractVideoFrames(asset: AssetRecord) {
+async function extractVideoFrames(asset: AssetRecord, frameCount = 5): Promise<PreviewFrames> {
   const video = document.createElement("video");
   video.crossOrigin = "anonymous";
   video.muted = true;
+  video.playsInline = true;
   video.src = assetContentURL(asset.id);
   video.preload = "metadata";
   video.load();
   await waitForVideoEvent(video, "loadedmetadata");
   const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 1;
-  const points = Array.from({ length: 5 }, (_, index) => duration * ((index + 1) / 6));
+  const safeStart = Math.min(Math.max(0.1, duration * 0.02), Math.max(0.01, duration - 0.01));
+  const points = Array.from({ length: frameCount }, (_, index) => (
+    frameCount === 1 ? safeStart : Math.min(duration - 0.01, safeStart + (duration - safeStart) * (index / frameCount))
+  ));
   const canvas = document.createElement("canvas");
-  const width = 420;
-  const height = 260;
+  const aspectRatio = (video.videoWidth && video.videoHeight) ? video.videoWidth / video.videoHeight : 16 / 9;
+  const width = 520;
+  const height = Math.max(1, Math.round(width / aspectRatio));
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d");
-  if (!context) return [];
+  if (!context) return { frames: [], aspectRatio };
   const frames: string[] = [];
   for (const point of points) {
     video.currentTime = point;
     await waitForVideoEvent(video, "seeked");
     context.drawImage(video, 0, 0, width, height);
+    const frame = canvas.toDataURL("image/jpeg", 0.78);
+    if (frames.length || !isMostlyBlack(context, width, height)) {
+      frames.push(frame);
+    }
+  }
+  if (!frames.length) {
+    context.drawImage(video, 0, 0, width, height);
     frames.push(canvas.toDataURL("image/jpeg", 0.78));
   }
-  return frames;
+  return { frames, aspectRatio };
 }
 
-async function extractGifFrames(asset: AssetRecord) {
+async function extractGifFrames(asset: AssetRecord, frameCount = 5): Promise<PreviewFrames> {
   const img = new Image();
   img.crossOrigin = "anonymous";
   const loaded = waitForImage(img);
   img.src = assetContentURL(asset.id);
   await loaded;
   const canvas = document.createElement("canvas");
-  const width = 420;
-  const height = 260;
+  const aspectRatio = (img.naturalWidth && img.naturalHeight) ? img.naturalWidth / img.naturalHeight : 1;
+  const width = 520;
+  const height = Math.max(1, Math.round(width / aspectRatio));
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d");
-  if (!context) return [];
+  if (!context) return { frames: [], aspectRatio };
   const frames: string[] = [];
-  for (let index = 0; index < 5; index++) {
-    await delay(180);
+  for (let index = 0; index < frameCount; index++) {
+    if (index > 0) await delay(1000);
     context.drawImage(img, 0, 0, width, height);
     frames.push(canvas.toDataURL("image/jpeg", 0.78));
   }
-  return frames;
+  return { frames, aspectRatio };
+}
+
+function isMostlyBlack(context: CanvasRenderingContext2D, width: number, height: number) {
+  const data = context.getImageData(0, 0, width, height).data;
+  let dark = 0;
+  const step = 16;
+  for (let index = 0; index < data.length; index += 4 * step) {
+    if (data[index] + data[index + 1] + data[index + 2] < 45) dark++;
+  }
+  return dark / Math.max(1, data.length / (4 * step)) > 0.92;
+}
+
+function hoverPreviewStyle(x: number, y: number, aspectRatio: number) {
+  const width = Math.min(520, window.innerWidth - 36);
+  const height = width / Math.max(0.2, aspectRatio);
+  return {
+    left: Math.min(Math.max(12, x + 18), Math.max(12, window.innerWidth - width - 12)),
+    top: Math.min(Math.max(12, y + 18), Math.max(12, window.innerHeight - height - 12)),
+    width,
+    aspectRatio: String(aspectRatio)
+  };
 }
 
 function waitForVideoEvent(video: HTMLVideoElement, event: "loadedmetadata" | "seeked") {
@@ -565,6 +644,10 @@ function isVideoAsset(asset: AssetRecord) {
   return asset.media_type === "video" || asset.mime_type?.startsWith("video/");
 }
 
+function isAudioAsset(asset: AssetRecord) {
+  return asset.media_type === "audio" || asset.mime_type?.startsWith("audio/");
+}
+
 function isTextAsset(asset: AssetRecord) {
   const name = asset.name?.toLowerCase() || "";
   return ["text", "json", "markdown", "prompt", "prompt_template"].includes(asset.media_type) ||
@@ -575,7 +658,7 @@ function isTextAsset(asset: AssetRecord) {
 }
 
 function isPreviewable(asset: AssetRecord) {
-  return isImageAsset(asset) || isVideoAsset(asset) || isTextAsset(asset) || asset.media_type === "pdf";
+  return isImageAsset(asset) || isVideoAsset(asset) || isAudioAsset(asset) || isTextAsset(asset) || asset.media_type === "pdf";
 }
 
 function formatBytes(size?: number) {
