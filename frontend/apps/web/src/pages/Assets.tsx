@@ -13,6 +13,7 @@ import {
   type AssetRecord,
   type Task
 } from "@omnimam/shared";
+import { decompressFrames, parseGIF, type ParsedFrame } from "gifuct-js";
 import {
   Copy,
   Download,
@@ -436,7 +437,7 @@ function GeneratedMediaThumb({ asset }: { asset: AssetRecord }) {
 
   useEffect(() => {
     let canceled = false;
-    const extract = () => isGifAsset(asset) ? extractGifFrames(asset, 1) : extractVideoFrames(asset, 5);
+    const extract = () => isGifAsset(asset) ? extractGifFrames(asset, 5) : extractVideoFrames(asset, 5);
     extract()
       .then((result) => {
         if (!canceled) setSrc(result.frames[0] || "");
@@ -550,26 +551,52 @@ async function extractVideoFrames(asset: AssetRecord, frameCount = 5): Promise<P
 }
 
 async function extractGifFrames(asset: AssetRecord, frameCount = 5): Promise<PreviewFrames> {
-  const img = new Image();
-  img.crossOrigin = "anonymous";
-  const loaded = waitForImage(img);
-  img.src = assetContentURL(asset.id);
-  await loaded;
-  const canvas = document.createElement("canvas");
-  const aspectRatio = (img.naturalWidth && img.naturalHeight) ? img.naturalWidth / img.naturalHeight : 1;
-  const width = 520;
-  const height = Math.max(1, Math.round(width / aspectRatio));
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext("2d");
-  if (!context) return { frames: [], aspectRatio };
+  const response = await fetch(assetContentURL(asset.id));
+  if (!response.ok) throw new Error("gif preview failed");
+  const parsed = parseGIF(await response.arrayBuffer());
+  const decoded = decompressFrames(parsed, true);
+  const width = parsed.lsd.width || asset.width || 1;
+  const height = parsed.lsd.height || asset.height || 1;
+  const source = document.createElement("canvas");
+  const target = document.createElement("canvas");
+  const sourceContext = source.getContext("2d");
+  const targetContext = target.getContext("2d");
+  source.width = width;
+  source.height = height;
+  target.width = 520;
+  target.height = Math.max(1, Math.round(520 / (width / height)));
+  if (!sourceContext || !targetContext) return { frames: [], aspectRatio: width / height };
+
   const frames: string[] = [];
-  for (let index = 0; index < frameCount; index++) {
-    if (index > 0) await delay(1000);
-    context.drawImage(img, 0, 0, width, height);
-    frames.push(canvas.toDataURL("image/jpeg", 0.78));
+  const step = Math.max(1, Math.floor(decoded.length / frameCount));
+  for (let index = 0; index < decoded.length && frames.length < frameCount; index++) {
+    drawGifPatch(sourceContext, decoded[index]);
+    if (index % step === 0 || index === decoded.length - 1) {
+      targetContext.clearRect(0, 0, target.width, target.height);
+      targetContext.drawImage(source, 0, 0, target.width, target.height);
+      frames.push(target.toDataURL("image/jpeg", 0.78));
+    }
+    disposeGifFrame(sourceContext, decoded[index]);
   }
-  return { frames, aspectRatio };
+  return { frames, aspectRatio: width / height };
+}
+
+function drawGifPatch(context: CanvasRenderingContext2D, frame: ParsedFrame) {
+  const patch = document.createElement("canvas");
+  const patchContext = patch.getContext("2d");
+  patch.width = frame.dims.width;
+  patch.height = frame.dims.height;
+  if (!patchContext) return;
+  const imageData = patchContext.createImageData(frame.dims.width, frame.dims.height);
+  imageData.data.set(frame.patch);
+  patchContext.putImageData(imageData, 0, 0);
+  context.drawImage(patch, frame.dims.left, frame.dims.top);
+}
+
+function disposeGifFrame(context: CanvasRenderingContext2D, frame: ParsedFrame) {
+  if (frame.disposalType === 2) {
+    context.clearRect(frame.dims.left, frame.dims.top, frame.dims.width, frame.dims.height);
+  }
 }
 
 function isMostlyBlack(context: CanvasRenderingContext2D, width: number, height: number) {
@@ -610,17 +637,6 @@ function waitForVideoEvent(video: HTMLVideoElement, event: "loadedmetadata" | "s
     video.addEventListener(event, onDone, { once: true });
     video.addEventListener("error", onError, { once: true });
   });
-}
-
-function waitForImage(img: HTMLImageElement) {
-  return new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error("gif preview failed"));
-  });
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 async function sha256File(file: File) {

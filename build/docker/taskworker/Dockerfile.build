@@ -1,17 +1,20 @@
 ARG BASE_IMAGE=registry.cn-hangzhou.aliyuncs.com/eazycloud/ubuntu:24.04
 
 FROM --platform=$TARGETPLATFORM $BASE_IMAGE
-ARG TARGETPLATFORM
-ARG BASE_IMAGE
+
 
 WORKDIR /opt/omnimam
 RUN mkdir -p /var/log/omnimam && \
     mkdir -p /etc/omnimam
 
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg ca-certificates
+
+ARG TARGETPLATFORM
+ARG BASE_IMAGE
 
 RUN if [ `echo $BASE_IMAGE | grep -q -E "ubuntu" && echo 1 || echo 0` -eq 1 ]; then \
         ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
