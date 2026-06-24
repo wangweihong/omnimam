@@ -8,6 +8,7 @@ import { Assets } from "./pages/Assets";
 import { Providers } from "./pages/Providers";
 import { Tasks } from "./pages/Tasks";
 import { Canvases } from "./pages/Canvases";
+import { CanvasEditor } from "./pages/CanvasEditor";
 
 const navItems = [
   { path: "/dashboard", label: "工作台", icon: LayoutDashboard, permission: "" },
@@ -89,6 +90,7 @@ export function App() {
           <Route path="/providers" element={<Providers canWrite={hasPermission(me, "provider.manage")} />} />
           <Route path="/tasks" element={<Tasks canWrite={hasPermission(me, "task.cancel")} />} />
           <Route path="/canvases" element={<Canvases />} />
+          <Route path="/canvases/:canvasId" element={<CanvasEditor />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </main>

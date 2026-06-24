@@ -97,9 +97,143 @@ export interface CanvasRecord {
   id: string;
   name: string;
   title?: string;
+  icon?: string;
   kind?: string;
+  project_id?: string;
   description?: string;
+  node_count?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  created_at?: string;
   updated_at?: string;
+}
+
+export type CanvasNodeType =
+  | "image"
+  | "prompt"
+  | "loop"
+  | "llm"
+  | "generator"
+  | "msgen"
+  | "video"
+  | "rh"
+  | "comfy"
+  | "ltxDirector"
+  | "output"
+  | "group"
+  | "promptGroup"
+  | "smart-image"
+  | "smart-prompt"
+  | "smart-loop"
+  | "smart-group";
+
+export interface CanvasNode {
+  id: string;
+  type: CanvasNodeType | string;
+  x: number;
+  y: number;
+  w?: number;
+  h?: number;
+  title?: string;
+  text?: string;
+  name?: string;
+  asset_id?: string;
+  url?: string;
+  prompt?: string;
+  count?: number;
+  mode?: string;
+  model?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+export interface CanvasConnection {
+  id?: string;
+  from: string;
+  to: string;
+  kind?: string;
+}
+
+export interface CanvasViewport {
+  x: number;
+  y: number;
+  scale: number;
+}
+
+export interface CanvasDetail extends CanvasRecord {
+  nodes?: CanvasNode[];
+  connections?: CanvasConnection[];
+  viewport?: CanvasViewport;
+  logs?: unknown[];
+  settings?: Record<string, unknown>;
+}
+
+export interface CanvasGetResponse {
+  canvas: CanvasDetail;
+}
+
+export interface CanvasCreateResponse {
+  canvas: CanvasRecord;
+}
+
+export interface CanvasExportPayload {
+  title?: string;
+  icon?: string;
+  kind?: string;
+  nodes?: CanvasNode[];
+  connections?: CanvasConnection[];
+  viewport?: CanvasViewport;
+  logs?: unknown;
+  settings?: unknown;
+}
+
+export interface CanvasExportResponse {
+  canvas_id?: string;
+  canvas: CanvasExportPayload;
+}
+
+export interface CanvasImportResponse {
+  canvas: CanvasRecord;
+}
+
+export interface CanvasWorkflowPayload {
+  canvas_id?: string;
+  nodes?: CanvasNode[];
+  connections?: CanvasConnection[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface CanvasWorkflowExportResponse {
+  workflow: CanvasWorkflowPayload;
+}
+
+export interface CanvasWorkflowImportResponse {
+  canvas: CanvasDetail;
+}
+
+export interface CanvasWorkflowPackage {
+  workflow: CanvasWorkflowPayload;
+  assets?: AssetRecord[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface CanvasWorkflowPackageExportResponse {
+  package: CanvasWorkflowPackage;
+  task?: Task;
+}
+
+export interface CanvasWorkflowPackageImportResponse {
+  canvas: CanvasDetail;
+  task?: Task;
+}
+
+export interface CanvasRunResponse {
+  task: Task;
+}
+
+export interface CanvasAssetRegisterOutputResponse {
+  asset: AssetRecord;
+  task?: Task;
 }
 
 export interface ProviderListResponse extends ListRet {

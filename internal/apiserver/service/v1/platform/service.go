@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"archive/zip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -109,6 +110,19 @@ type PlatformSrv interface {
 	TaskCancel(ctx context.Context, id string) (*iapiserver.TaskCancelResponse, error)
 	TaskClaim(ctx context.Context, queue, worker string, limit int, lease time.Duration) ([]*iapiserver.Task, error)
 	TaskUpdate(ctx context.Context, task *iapiserver.Task) (*iapiserver.Task, error)
+
+	// CanvasAssetRegisterOutput registers one generated asset as a canvas output reference.
+	// It returns asset metadata and creates an async audit task; raw content is not returned.
+	CanvasAssetRegisterOutput(
+		ctx context.Context,
+		req *iapiserver.CanvasAssetRegisterOutputRequest,
+	) (*iapiserver.CanvasAssetRegisterOutputResponse, error)
+	// CanvasAssetDownloadZip writes selected asset contents into a zip stream.
+	// It reads raw asset objects through StorageBackend and never exposes local paths.
+	CanvasAssetDownloadZip(ctx context.Context, req *iapiserver.CanvasAssetDownloadRequest, dst io.Writer) error
+	// CanvasNodeRun creates a task for one canvas node execution.
+	// Provider-specific work is handled later by workers through task input.
+	CanvasNodeRun(ctx context.Context, canvasID, nodeID string, req *iapiserver.CanvasNodeRunRequest) (*iapiserver.CanvasRunResponse, error)
 }
 
 type platformService struct {
@@ -920,6 +934,91 @@ func (s *platformService) TaskUpdate(ctx context.Context, task *iapiserver.Task)
 	return s.store.Tasks().Update(ctx, task)
 }
 
+func (s *platformService) CanvasAssetRegisterOutput(
+	ctx context.Context,
+	req *iapiserver.CanvasAssetRegisterOutputRequest,
+) (*iapiserver.CanvasAssetRegisterOutputResponse, error) {
+	record, err := s.AssetGet(ctx, req.AssetID)
+	if err != nil {
+		return nil, err
+	}
+	task, err := s.enqueueTask(ctx, iapiserver.TaskTypeCanvasOutputRegister, map[string]any{
+		"canvas_id": req.CanvasID,
+		"node_id":   req.NodeID,
+		"asset_id":  req.AssetID,
+		"metadata":  req.Metadata,
+	})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return &iapiserver.CanvasAssetRegisterOutputResponse{Asset: record, Task: task}, nil
+}
+
+func (s *platformService) CanvasAssetDownloadZip(
+	ctx context.Context,
+	req *iapiserver.CanvasAssetDownloadRequest,
+	dst io.Writer,
+) error {
+	items := req.Items
+	for _, assetID := range req.AssetIDs {
+		items = append(items, iapiserver.CanvasAssetDownloadItem{AssetID: assetID})
+	}
+	if len(items) == 0 {
+		return errors.NewStatusF(code.ErrValidation, "asset_ids or items is required")
+	}
+	zw := zip.NewWriter(dst)
+	defer zw.Close()
+	usedNames := map[string]int{}
+	for index, item := range items {
+		asset, err := s.store.AssetsV2().Get(ctx, item.AssetID)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		if asset.DeletedAt > 0 {
+			return errors.NewStatusF(code.ErrValidation, "asset %s has been deleted", item.AssetID)
+		}
+		path, _, err := s.AssetContentPath(ctx, asset.ID)
+		if err != nil {
+			return err
+		}
+		name := item.Name
+		if name == "" {
+			name = asset.Name
+		}
+		if name == "" {
+			name = fmt.Sprintf("asset-%02d", index+1)
+		}
+		name = uniqueZipName(usedNames, safeObjectName(name, fmt.Sprintf("asset-%02d", index+1)))
+		if err := addFileToZip(zw, path, name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *platformService) CanvasNodeRun(
+	ctx context.Context,
+	canvasID, nodeID string,
+	req *iapiserver.CanvasNodeRunRequest,
+) (*iapiserver.CanvasRunResponse, error) {
+	task, err := s.TaskCreate(ctx, &iapiserver.TaskCreateRequest{
+		Name:        "canvas-node-run",
+		Type:        canvasNodeTaskType(req.Node),
+		Queue:       "default",
+		MaxAttempts: 3,
+		Input: map[string]any{
+			"canvas_id": canvasID,
+			"node_id":   nodeID,
+			"node":      req.Node,
+			"settings":  req.Settings,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &iapiserver.CanvasRunResponse{Task: task}, nil
+}
+
 func (s *platformService) ensureDefaultLocalBackend(ctx context.Context) (*iapiserver.StorageBackend, error) {
 	backend, err := s.store.StorageBackends().GetDefaultLocal(ctx)
 	if err == nil {
@@ -1301,4 +1400,66 @@ func safeObjectName(name, fallback string) string {
 	}
 	runes := []rune(name)
 	return string(runes[:60])
+}
+
+func uniqueZipName(used map[string]int, name string) string {
+	name = strings.Trim(strings.ReplaceAll(name, "\\", "/"), "/")
+	if name == "" {
+		name = "asset"
+	}
+	used[name]++
+	if used[name] == 1 {
+		return name
+	}
+	ext := filepath.Ext(name)
+	base := strings.TrimSuffix(name, ext)
+	return fmt.Sprintf("%s-%d%s", base, used[name], ext)
+}
+
+func addFileToZip(zw *zip.Writer, path string, name string) error {
+	src, err := os.Open(path)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	defer src.Close()
+	info, err := src.Stat()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	header, err := zip.FileInfoHeader(info)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	header.Name = name
+	header.Method = zip.Deflate
+	dst, err := zw.CreateHeader(header)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
+}
+
+func canvasNodeTaskType(node map[string]any) string {
+	nodeType, _ := node["type"].(string)
+	switch nodeType {
+	case "llm", "smart-prompt":
+		return "canvas.node.llm"
+	case "generator":
+		return "canvas.node.image_generate"
+	case "video":
+		return "canvas.node.video_generate"
+	case "comfy":
+		return "canvas.node.comfy"
+	case "rh":
+		return "canvas.node.runninghub"
+	case "msgen":
+		return "canvas.node.modelscope"
+	case "ltxDirector":
+		return "canvas.node.ltx_director"
+	default:
+		return iapiserver.TaskTypeCanvasNodeRun
+	}
 }

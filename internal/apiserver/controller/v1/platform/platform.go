@@ -284,12 +284,65 @@ func (pc *PlatformController) TaskEvents(c *gin.Context) {
 func (pc *PlatformController) RunCanvas(c *gin.Context) {
 	req := &iapiserver.TaskCreateRequest{
 		Name:  "canvas-run",
-		Type:  "canvas.run",
+		Type:  iapiserver.TaskTypeCanvasRun,
 		Queue: "default",
 		Input: map[string]any{"canvas_id": c.Param("canvas_id")},
 	}
 	ret, err := pc.srv.Platforms().TaskCreate(c, req)
 	core.WriteResponse(c, err, ret)
+}
+
+// DownloadCanvasAssets streams selected asset contents as a zip archive.
+// It accepts asset IDs only, does not expose local paths, and skips no security checks.
+func (pc *PlatformController) DownloadCanvasAssets(c *gin.Context) {
+	req := &iapiserver.CanvasAssetDownloadRequest{}
+	if err := c.ShouldBindJSON(req); err != nil {
+		core.WriteResponse(c, err, nil)
+		return
+	}
+	filename := strings.TrimSpace(req.Filename)
+	if filename == "" {
+		filename = "canvas-assets.zip"
+	}
+	if !strings.HasSuffix(strings.ToLower(filename), ".zip") {
+		filename += ".zip"
+	}
+	c.Header("Content-Type", "application/zip")
+	c.Header("Content-Disposition", `attachment; filename="`+strings.ReplaceAll(filename, `"`, `_`)+`"`)
+	if err := pc.srv.Platforms().CanvasAssetDownloadZip(c, req, c.Writer); err != nil {
+		core.WriteResponse(c, err, nil)
+	}
+}
+
+// RegisterCanvasOutput records an existing asset as a canvas output reference.
+// It returns metadata only and creates an async audit task.
+func (pc *PlatformController) RegisterCanvasOutput(c *gin.Context) {
+	core.Run(c, &iapiserver.CanvasAssetRegisterOutputRequest{}, func(r *iapiserver.CanvasAssetRegisterOutputRequest) (any, error) {
+		return pc.srv.Platforms().CanvasAssetRegisterOutput(c, r)
+	})
+}
+
+// RunCanvasNode creates a task for one canvas node execution.
+// Provider-specific execution is handled by workers through the task input.
+func (pc *PlatformController) RunCanvasNode(c *gin.Context) {
+	req := &iapiserver.CanvasNodeRunRequest{}
+	core.Run(c, req, func(r *iapiserver.CanvasNodeRunRequest) (any, error) {
+		return pc.srv.Platforms().CanvasNodeRun(c, c.Param("canvas_id"), c.Param("node_id"), r)
+	})
+}
+
+// GetCanvasRun returns the task backing a canvas or node run.
+func (pc *PlatformController) GetCanvasRun(c *gin.Context) {
+	core.Run(c, nil, func(_ any) (any, error) {
+		return pc.srv.Platforms().TaskGet(c, c.Param("task_id"))
+	})
+}
+
+// CancelCanvasRun cancels the task backing a canvas or node run.
+func (pc *PlatformController) CancelCanvasRun(c *gin.Context) {
+	core.Run(c, nil, func(_ any) (any, error) {
+		return pc.srv.Platforms().TaskCancel(c, c.Param("task_id"))
+	})
 }
 
 func splitTags(raw string) []string {

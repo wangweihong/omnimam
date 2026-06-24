@@ -70,15 +70,16 @@ func (s *canvas) Update(ctx context.Context, data *iapiserver.Canvas) (*iapiserv
 		Model(&iapiserver.Canvas{}).
 		Where("id = ?", data.ID).
 		Updates(map[string]any{
-			"title":      data.Title,
-			"icon":       data.Icon,
-			"kind":       data.Kind,
-			"owner":      data.Owner,
-			"color":      data.Color,
-			"pinned":     data.Pinned,
-			"project_id": data.ProjectID,
-			"board_x":    data.BoardX,
-			"board_y":    data.BoardY,
+			"title":         data.Title,
+			"icon":          data.Icon,
+			"kind":          data.Kind,
+			"owner":         data.Owner,
+			"color":         data.Color,
+			"pinned":        data.Pinned,
+			"project_id":    data.ProjectID,
+			"board_x":       data.BoardX,
+			"board_y":       data.BoardY,
+			"extend_shadow": data.Extend.String(),
 		})
 	if result.Error != nil {
 		return nil, errors.WithStack(result.Error)

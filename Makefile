@@ -71,7 +71,14 @@ image:
 
 .PHONY: compose
 compose: image frontend.image
-	@docker compose -f deployments/docker-compose.yaml down &&  docker compose -f deployments/docker-compose.yaml up -d
+	@OMNIMAM_IMAGE_TAG=$(VERSION)-$(shell $(GO) env GOHOSTARCH) \
+		OMNIMAM_FRONTEND_IMAGE_TAG=$(FRONTEND_VERSION) \
+		OMNIMAM_REGISTRY_PREFIX=$(REGISTRY_PREFIX) \
+		docker compose -f deployments/docker-compose.yaml down
+	@OMNIMAM_IMAGE_TAG=$(VERSION)-$(shell $(GO) env GOHOSTARCH) \
+		OMNIMAM_FRONTEND_IMAGE_TAG=$(FRONTEND_VERSION) \
+		OMNIMAM_REGISTRY_PREFIX=$(REGISTRY_PREFIX) \
+		docker compose -f deployments/docker-compose.yaml up -d
 
 ## gobuild.push.multiarch: Build source code in docker golang container and docker image for multiple platforms, push images to registry. See option PLATFORMS.
 .PHONY: gobuild.push.multiarch

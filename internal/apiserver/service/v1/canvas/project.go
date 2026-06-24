@@ -15,13 +15,50 @@ type CanvasSrv interface {
 	ProjectUpdate(ctx context.Context, req *iapiserver.ProjectUpdateRequest) (*iapiserver.ProjectRecord, error)
 	ProjectDelete(ctx context.Context, req *iapiserver.ProjectDeleteRequest) (int, error)
 
+	// CanvasList returns active canvas metadata only; it does not return raw asset content.
 	CanvasList(ctx context.Context) (*iapiserver.CanvasListResponse, error)
+	// CanvasTrashList returns soft-deleted canvas metadata for restore or purge flows.
 	CanvasTrashList(ctx context.Context) (*iapiserver.CanvasTrashResponse, error)
+	// CanvasCreate creates a classic or smart canvas in the selected project.
 	CanvasCreate(ctx context.Context, req *iapiserver.CanvasCreateRequest) (*iapiserver.CanvasCreateResponse, error)
+	// CanvasGet returns canvas metadata and editable graph JSON.
 	CanvasGet(ctx context.Context, id string) (*iapiserver.CanvasGetResponse, error)
+	// CanvasGetMeta returns lightweight metadata used for conflict checks.
 	CanvasGetMeta(ctx context.Context, id string) (*iapiserver.CanvasMetaResponse, error)
+	// CanvasUpdateMeta updates title, icon, project, and board placement metadata only.
 	CanvasUpdateMeta(ctx context.Context, req *iapiserver.CanvasMetaUpdateRequest) (*iapiserver.CanvasRecord, error)
+	// CanvasSave persists editable graph JSON and returns the updated canvas document.
 	CanvasSave(ctx context.Context, req *iapiserver.CanvasSaveRequest) (*iapiserver.Canvas, error)
+	// CanvasExport returns the JSON canvas document for import/export workflows.
+	// It returns canvas metadata and graph data only, never embedded asset binaries.
+	CanvasExport(ctx context.Context, id string) (*iapiserver.CanvasExportResponse, error)
+	// CanvasImport creates a new canvas from a JSON export document.
+	// It never overwrites an existing canvas and does not create async tasks.
+	CanvasImport(ctx context.Context, req *iapiserver.CanvasImportRequest) (*iapiserver.CanvasImportResponse, error)
+	// CanvasWorkflowExport returns a selected workflow fragment or the full canvas graph.
+	// The response contains JSON nodes/connections only and no raw asset content.
+	CanvasWorkflowExport(ctx context.Context, id string, req *iapiserver.CanvasWorkflowExportRequest) (
+		*iapiserver.CanvasWorkflowExportResponse,
+		error,
+	)
+	// CanvasWorkflowImport merges a workflow JSON fragment into an existing canvas.
+	// It updates canvas graph metadata synchronously and does not run the workflow.
+	CanvasWorkflowImport(ctx context.Context, id string, req *iapiserver.CanvasWorkflowImportRequest) (
+		*iapiserver.CanvasWorkflowImportResponse,
+		error,
+	)
+	// CanvasWorkflowPackageExport returns workflow JSON plus referenced asset metadata.
+	// It creates an async audit task and never embeds raw asset content.
+	CanvasWorkflowPackageExport(ctx context.Context, id string, req *iapiserver.CanvasWorkflowPackageExportRequest) (
+		*iapiserver.CanvasWorkflowPackageExportResponse,
+		error,
+	)
+	// CanvasWorkflowPackageImport merges workflow package JSON into an existing canvas.
+	// It creates an async audit task and does not run generation tasks.
+	CanvasWorkflowPackageImport(ctx context.Context, id string, req *iapiserver.CanvasWorkflowPackageImportRequest) (
+		*iapiserver.CanvasWorkflowPackageImportResponse,
+		error,
+	)
 	CanvasTouch(ctx context.Context, id string) (*iapiserver.CanvasTouchResponse, error)
 	CanvasSoftDelete(ctx context.Context, id string) error
 	CanvasRestore(ctx context.Context, id string) (*iapiserver.CanvasRestoreResponse, error)
@@ -57,6 +94,55 @@ func (s *canvasService) toCanvasRecord(c *iapiserver.Canvas) *iapiserver.CanvasR
 		}
 	}
 	return &iapiserver.CanvasRecord{Canvas: c, NodeCount: nodeCount}
+}
+
+func hydrateCanvas(c *iapiserver.Canvas) {
+	if c == nil {
+		return
+	}
+	c.Nodes = c.Extend["nodes"]
+	c.Connections = c.Extend["connections"]
+	c.Viewport = c.Extend["viewport"]
+	c.Logs = c.Extend["logs"]
+	c.Settings = c.Extend["settings"]
+}
+
+func canvasPayload(c *iapiserver.Canvas) iapiserver.CanvasExportPayload {
+	return iapiserver.CanvasExportPayload{
+		Title:       c.Title,
+		Icon:        c.Icon,
+		Kind:        c.Kind,
+		Nodes:       c.Extend["nodes"],
+		Connections: c.Extend["connections"],
+		Viewport:    c.Extend["viewport"],
+		Logs:        c.Extend["logs"],
+		Settings:    c.Extend["settings"],
+	}
+}
+
+func mergeGraphValue(current, incoming any) any {
+	if incoming == nil {
+		return current
+	}
+	currentSlice, currentIsSlice := current.([]any)
+	incomingSlice, incomingIsSlice := incoming.([]any)
+	if currentIsSlice && incomingIsSlice {
+		return append(currentSlice, incomingSlice...)
+	}
+
+	currentMap, currentIsMap := current.(map[string]any)
+	incomingMap, incomingIsMap := incoming.(map[string]any)
+	if currentIsMap && incomingIsMap {
+		merged := make(map[string]any, len(currentMap)+len(incomingMap))
+		for key, value := range currentMap {
+			merged[key] = value
+		}
+		for key, value := range incomingMap {
+			merged[key] = value
+		}
+		return merged
+	}
+	return incoming
 }
 
 func (s *canvasService) ProjectList(ctx context.Context) (*iapiserver.ProjectListResponse, error) {
@@ -241,6 +327,7 @@ func (s *canvasService) CanvasGet(ctx context.Context, id string) (*iapiserver.C
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+	hydrateCanvas(c)
 	return &iapiserver.CanvasGetResponse{Canvas: c}, nil
 }
 
@@ -324,7 +411,164 @@ func (s *canvasService) CanvasSave(ctx context.Context, req *iapiserver.CanvasSa
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+	hydrateCanvas(updated)
 	return updated, nil
+}
+
+func (s *canvasService) CanvasExport(ctx context.Context, id string) (*iapiserver.CanvasExportResponse, error) {
+	c, err := s.store.Canvases().Get(ctx, id)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return &iapiserver.CanvasExportResponse{CanvasID: c.ID, Canvas: canvasPayload(c)}, nil
+}
+
+func (s *canvasService) CanvasImport(
+	ctx context.Context,
+	req *iapiserver.CanvasImportRequest,
+) (*iapiserver.CanvasImportResponse, error) {
+	if err := s.ensureDefaultProject(ctx); err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	projectID := req.Project
+	if projectID == "" {
+		projectID = iapiserver.DefaultProjectID
+	}
+	kind := req.Canvas.Kind
+	if kind == "" {
+		kind = iapiserver.CanvasKindClassic
+	}
+	title := req.Canvas.Title
+	if title == "" {
+		title = "导入画布"
+	}
+
+	c := &iapiserver.Canvas{}
+	c.Title = title
+	c.Icon = req.Canvas.Icon
+	c.Kind = kind
+	c.ProjectID = projectID
+	c.Extend = map[string]any{
+		"nodes":       req.Canvas.Nodes,
+		"connections": req.Canvas.Connections,
+		"viewport":    req.Canvas.Viewport,
+		"logs":        req.Canvas.Logs,
+		"settings":    req.Canvas.Settings,
+	}
+
+	created, err := s.store.Canvases().Add(ctx, c)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return &iapiserver.CanvasImportResponse{Canvas: s.toCanvasRecord(created)}, nil
+}
+
+func (s *canvasService) CanvasWorkflowExport(
+	ctx context.Context,
+	id string,
+	req *iapiserver.CanvasWorkflowExportRequest,
+) (*iapiserver.CanvasWorkflowExportResponse, error) {
+	c, err := s.store.Canvases().Get(ctx, id)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	nodes := req.Nodes
+	if nodes == nil {
+		nodes = c.Extend["nodes"]
+	}
+	connections := req.Connections
+	if connections == nil {
+		connections = c.Extend["connections"]
+	}
+	return &iapiserver.CanvasWorkflowExportResponse{
+		Workflow: iapiserver.CanvasWorkflowPayload{
+			CanvasID:    c.ID,
+			Nodes:       nodes,
+			Connections: connections,
+			Metadata:    req.Metadata,
+		},
+	}, nil
+}
+
+func (s *canvasService) CanvasWorkflowImport(
+	ctx context.Context,
+	id string,
+	req *iapiserver.CanvasWorkflowImportRequest,
+) (*iapiserver.CanvasWorkflowImportResponse, error) {
+	c, err := s.store.Canvases().Get(ctx, id)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	c.Extend["nodes"] = mergeGraphValue(c.Extend["nodes"], req.Workflow.Nodes)
+	c.Extend["connections"] = mergeGraphValue(c.Extend["connections"], req.Workflow.Connections)
+
+	updated, err := s.store.Canvases().Update(ctx, c)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	hydrateCanvas(updated)
+	return &iapiserver.CanvasWorkflowImportResponse{Canvas: updated}, nil
+}
+
+func (s *canvasService) CanvasWorkflowPackageExport(
+	ctx context.Context,
+	id string,
+	req *iapiserver.CanvasWorkflowPackageExportRequest,
+) (*iapiserver.CanvasWorkflowPackageExportResponse, error) {
+	workflow, err := s.CanvasWorkflowExport(ctx, id, &req.CanvasWorkflowExportRequest)
+	if err != nil {
+		return nil, err
+	}
+	assets := make([]*iapiserver.AssetRecord, 0, len(req.AssetIDs))
+	for _, assetID := range req.AssetIDs {
+		asset, err := s.store.AssetsV2().Get(ctx, assetID)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		assets = append(assets, &iapiserver.AssetRecord{Asset: asset})
+	}
+	task := &iapiserver.Task{
+		Type:        iapiserver.TaskTypeCanvasWorkflowPackageExport,
+		Status:      iapiserver.TaskStatusPending,
+		Queue:       "default",
+		Input:       map[string]any{"canvas_id": id, "asset_ids": req.AssetIDs, "filename": req.Filename},
+		MaxAttempts: 1,
+	}
+	task.Name = "canvas-workflow-package-export"
+	createdTask, err := s.store.Tasks().Add(ctx, task)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return &iapiserver.CanvasWorkflowPackageExportResponse{
+		Package: iapiserver.CanvasWorkflowPackage{Workflow: workflow.Workflow, Assets: assets, Metadata: req.Metadata},
+		Task:    createdTask,
+	}, nil
+}
+
+func (s *canvasService) CanvasWorkflowPackageImport(
+	ctx context.Context,
+	id string,
+	req *iapiserver.CanvasWorkflowPackageImportRequest,
+) (*iapiserver.CanvasWorkflowPackageImportResponse, error) {
+	imported, err := s.CanvasWorkflowImport(ctx, id, &iapiserver.CanvasWorkflowImportRequest{Workflow: req.Package.Workflow})
+	if err != nil {
+		return nil, err
+	}
+	task := &iapiserver.Task{
+		Type:        iapiserver.TaskTypeCanvasWorkflowPackageImport,
+		Status:      iapiserver.TaskStatusPending,
+		Queue:       "default",
+		Input:       map[string]any{"canvas_id": id, "metadata": req.Package.Metadata},
+		MaxAttempts: 1,
+	}
+	task.Name = "canvas-workflow-package-import"
+	createdTask, err := s.store.Tasks().Add(ctx, task)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return &iapiserver.CanvasWorkflowPackageImportResponse{Canvas: imported.Canvas, Task: createdTask}, nil
 }
 
 func (s *canvasService) CanvasTouch(ctx context.Context, id string) (*iapiserver.CanvasTouchResponse, error) {

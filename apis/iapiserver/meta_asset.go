@@ -128,21 +128,21 @@ func (Project) TableName() string {
 
 type Canvas struct {
 	imachinery.ObjectMeta
-	Title       string            `json:"title"                 gorm:"column:title;type:varchar(80);not null"`
-	Icon        string            `json:"icon"                  gorm:"column:icon;type:varchar(32)"`
-	Kind        string            `json:"kind"                  gorm:"column:kind;type:varchar(16);not null;default:classic"`
-	Owner       string            `json:"owner"                 gorm:"column:owner;type:varchar(40)"`
-	Color       string            `json:"color"                 gorm:"column:color;type:varchar(16)"`
-	Pinned      bool              `json:"pinned"                gorm:"column:pinned;type:boolean;not null;default:false"`
-	ProjectID   string            `json:"project_id"            gorm:"column:project_id;type:varchar(64);not null;index"`
-	DeletedAt   int64             `json:"deleted_at"            gorm:"column:deleted_at"`
-	BoardX      float64           `json:"board_x"               gorm:"column:board_x"`
-	BoardY      float64           `json:"board_y"               gorm:"column:board_y"`
-	Nodes       imachinery.Extend `json:"nodes,omitempty"       gorm:"-"`
-	Connections imachinery.Extend `json:"connections,omitempty" gorm:"-"`
-	Viewport    imachinery.Extend `json:"viewport,omitempty"    gorm:"-"`
-	Logs        imachinery.Extend `json:"logs,omitempty"        gorm:"-"`
-	Settings    imachinery.Extend `json:"settings,omitempty"    gorm:"-"`
+	Title       string  `json:"title"                 gorm:"column:title;type:varchar(80);not null"`
+	Icon        string  `json:"icon"                  gorm:"column:icon;type:varchar(32)"`
+	Kind        string  `json:"kind"                  gorm:"column:kind;type:varchar(16);not null;default:classic"`
+	Owner       string  `json:"owner"                 gorm:"column:owner;type:varchar(40)"`
+	Color       string  `json:"color"                 gorm:"column:color;type:varchar(16)"`
+	Pinned      bool    `json:"pinned"                gorm:"column:pinned;type:boolean;not null;default:false"`
+	ProjectID   string  `json:"project_id"            gorm:"column:project_id;type:varchar(64);not null;index"`
+	DeletedAt   int64   `json:"deleted_at"            gorm:"column:deleted_at"`
+	BoardX      float64 `json:"board_x"               gorm:"column:board_x"`
+	BoardY      float64 `json:"board_y"               gorm:"column:board_y"`
+	Nodes       any     `json:"nodes,omitempty"       gorm:"-"`
+	Connections any     `json:"connections,omitempty" gorm:"-"`
+	Viewport    any     `json:"viewport,omitempty"    gorm:"-"`
+	Logs        any     `json:"logs,omitempty"        gorm:"-"`
+	Settings    any     `json:"settings,omitempty"    gorm:"-"`
 }
 
 func (Canvas) TableName() string {

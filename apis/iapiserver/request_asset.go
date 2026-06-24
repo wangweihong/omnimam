@@ -241,13 +241,13 @@ type (
 	}
 
 	ProjectUpdateRequest struct {
-		imachinery.ObjectMeta
+		ID        string  `json:"id"`
 		Name      *string `json:"name"`
 		SortOrder *int    `json:"order"`
 	}
 
 	ProjectDeleteRequest struct {
-		imachinery.ObjectMeta
+		ID string `json:"id"`
 	}
 
 	CanvasListResponse struct {
@@ -290,7 +290,7 @@ type (
 	}
 
 	CanvasMetaUpdateRequest struct {
-		imachinery.ObjectMeta
+		ID      string   `json:"id"`
 		Title   *string  `json:"title"`
 		Icon    *string  `json:"icon"`
 		Owner   *string  `json:"owner"`
@@ -302,16 +302,124 @@ type (
 	}
 
 	CanvasSaveRequest struct {
-		imachinery.ObjectMeta
-		BaseUpdatedAt int64          `json:"base_updated_at"`
-		Title         string         `json:"title"`
-		Icon          string         `json:"icon"`
-		Kind          string         `json:"kind"`
-		Nodes         map[string]any `json:"nodes"`
-		Connections   map[string]any `json:"connections"`
-		Viewport      map[string]any `json:"viewport"`
-		Logs          map[string]any `json:"logs"`
-		Settings      map[string]any `json:"settings"`
+		ID            string `json:"id"`
+		BaseUpdatedAt int64  `json:"base_updated_at"`
+		Title         string `json:"title"`
+		Icon          string `json:"icon"`
+		Kind          string `json:"kind"`
+		Nodes         any    `json:"nodes"`
+		Connections   any    `json:"connections"`
+		Viewport      any    `json:"viewport"`
+		Logs          any    `json:"logs"`
+		Settings      any    `json:"settings"`
+	}
+
+	CanvasExportPayload struct {
+		Title       string `json:"title"`
+		Icon        string `json:"icon"`
+		Kind        string `json:"kind"`
+		Nodes       any    `json:"nodes"`
+		Connections any    `json:"connections"`
+		Viewport    any    `json:"viewport"`
+		Logs        any    `json:"logs"`
+		Settings    any    `json:"settings"`
+	}
+
+	CanvasExportResponse struct {
+		CanvasID string              `json:"canvas_id,omitempty"`
+		Canvas   CanvasExportPayload `json:"canvas"`
+	}
+
+	CanvasImportRequest struct {
+		Project string              `json:"project"`
+		Canvas  CanvasExportPayload `json:"canvas" binding:"required"`
+	}
+
+	CanvasImportResponse struct {
+		Canvas *CanvasRecord `json:"canvas"`
+	}
+
+	CanvasWorkflowExportRequest struct {
+		Nodes       any            `json:"nodes"`
+		Connections any            `json:"connections"`
+		Metadata    map[string]any `json:"metadata"`
+	}
+
+	CanvasWorkflowPayload struct {
+		CanvasID    string         `json:"canvas_id,omitempty"`
+		Nodes       any            `json:"nodes"`
+		Connections any            `json:"connections"`
+		Metadata    map[string]any `json:"metadata,omitempty"`
+	}
+
+	CanvasWorkflowExportResponse struct {
+		Workflow CanvasWorkflowPayload `json:"workflow"`
+	}
+
+	CanvasWorkflowImportRequest struct {
+		Workflow CanvasWorkflowPayload `json:"workflow" binding:"required"`
+	}
+
+	CanvasWorkflowImportResponse struct {
+		Canvas *Canvas `json:"canvas"`
+	}
+
+	CanvasWorkflowPackage struct {
+		Workflow CanvasWorkflowPayload `json:"workflow"`
+		Assets   []*AssetRecord        `json:"assets,omitempty"`
+		Metadata map[string]any        `json:"metadata,omitempty"`
+	}
+
+	CanvasWorkflowPackageExportRequest struct {
+		CanvasWorkflowExportRequest
+		AssetIDs []string `json:"asset_ids"`
+		Filename string   `json:"filename"`
+	}
+
+	CanvasWorkflowPackageExportResponse struct {
+		Package CanvasWorkflowPackage `json:"package"`
+		Task    *Task                 `json:"task,omitempty"`
+	}
+
+	CanvasWorkflowPackageImportRequest struct {
+		Package CanvasWorkflowPackage `json:"package" binding:"required"`
+	}
+
+	CanvasWorkflowPackageImportResponse struct {
+		Canvas *Canvas `json:"canvas"`
+		Task   *Task   `json:"task,omitempty"`
+	}
+
+	CanvasAssetDownloadItem struct {
+		AssetID string `json:"asset_id"`
+		Name    string `json:"name"`
+	}
+
+	CanvasAssetDownloadRequest struct {
+		AssetIDs []string                  `json:"asset_ids"`
+		Items    []CanvasAssetDownloadItem `json:"items"`
+		Filename string                    `json:"filename"`
+	}
+
+	CanvasAssetRegisterOutputRequest struct {
+		CanvasID string         `json:"canvas_id"`
+		NodeID   string         `json:"node_id"`
+		AssetID  string         `json:"asset_id" binding:"required"`
+		Metadata map[string]any `json:"metadata"`
+	}
+
+	CanvasAssetRegisterOutputResponse struct {
+		Asset *AssetRecord `json:"asset"`
+		Task  *Task        `json:"task,omitempty"`
+	}
+
+	CanvasNodeRunRequest struct {
+		Node     map[string]any `json:"node"`
+		Settings map[string]any `json:"settings"`
+	}
+
+	CanvasRunResponse struct {
+		Task *Task `json:"task"`
 	}
 
 	CanvasTouchResponse struct {

@@ -6,7 +6,23 @@ import type {
   AssetChunkUploadPartResponse,
   AssetSearchParseResponse,
   AssetUploadResponse,
+  CanvasConnection,
+  CanvasCreateResponse,
+  CanvasDetail,
+  CanvasExportPayload,
+  CanvasExportResponse,
+  CanvasGetResponse,
   CanvasListResponse,
+  CanvasImportResponse,
+  CanvasNode,
+  CanvasViewport,
+  CanvasWorkflowExportResponse,
+  CanvasWorkflowImportResponse,
+  CanvasWorkflowPackageExportResponse,
+  CanvasWorkflowPackageImportResponse,
+  CanvasWorkflowPayload,
+  CanvasRunResponse,
+  CanvasAssetRegisterOutputResponse,
   MeResponse,
   ProviderListResponse,
   ProviderModelListResponse,
@@ -109,4 +125,84 @@ export function cancelTask(taskID: string) {
 
 export function listCanvases() {
   return apiClient.get<CanvasListResponse>("/canvases");
+}
+
+export function createCanvas(input: {
+  title?: string;
+  icon?: string;
+  kind?: string;
+  project?: string;
+  board_x?: number;
+  board_y?: number;
+}) {
+  return apiClient.post<CanvasCreateResponse>("/canvases", input);
+}
+
+export function getCanvas(canvasID: string) {
+  return apiClient.get<CanvasGetResponse>(`/canvases/${canvasID}`);
+}
+
+export function saveCanvas(
+  canvasID: string,
+  input: {
+    title: string;
+    icon?: string;
+    kind?: string;
+    nodes: CanvasNode[];
+    connections: CanvasConnection[];
+    viewport: CanvasViewport;
+    logs?: unknown[];
+    settings?: Record<string, unknown>;
+    base_updated_at?: number;
+  }
+) {
+  return apiClient.put<CanvasDetail>(`/canvases/${canvasID}`, input);
+}
+
+export function updateCanvasMeta(canvasID: string, input: Record<string, unknown>) {
+  return apiClient.patch(`/canvases/${canvasID}`, input);
+}
+
+export function deleteCanvas(canvasID: string) {
+  return apiClient.delete(`/canvases/${canvasID}`);
+}
+
+export function runCanvas(canvasID: string) {
+  return apiClient.post<CanvasRunResponse>(`/canvases/${canvasID}/run`);
+}
+
+export function exportCanvas(canvasID: string) {
+  return apiClient.get<CanvasExportResponse>(`/canvases/${canvasID}/export`);
+}
+
+export function importCanvas(canvas: CanvasExportPayload, project?: string) {
+  return apiClient.post<CanvasImportResponse>("/canvases/import", { canvas, project });
+}
+
+export function exportCanvasWorkflow(canvasID: string, input: Partial<CanvasWorkflowPayload> = {}) {
+  return apiClient.post<CanvasWorkflowExportResponse>(`/canvases/${canvasID}/workflows/export`, input);
+}
+
+export function importCanvasWorkflow(canvasID: string, workflow: CanvasWorkflowPayload) {
+  return apiClient.post<CanvasWorkflowImportResponse>(`/canvases/${canvasID}/workflows/import`, { workflow });
+}
+
+export function exportCanvasWorkflowPackage(canvasID: string, input: Partial<CanvasWorkflowPayload> & { asset_ids?: string[]; filename?: string } = {}) {
+  return apiClient.post<CanvasWorkflowPackageExportResponse>(`/canvases/${canvasID}/workflows/export-package`, input);
+}
+
+export function importCanvasWorkflowPackage(canvasID: string, workflowPackage: Record<string, unknown>) {
+  return apiClient.post<CanvasWorkflowPackageImportResponse>(`/canvases/${canvasID}/workflows/import-package`, { package: workflowPackage });
+}
+
+export function runCanvasNode(canvasID: string, nodeID: string, input: Record<string, unknown>) {
+  return apiClient.post<CanvasRunResponse>(`/canvases/${canvasID}/nodes/${nodeID}/run`, input);
+}
+
+export function registerCanvasOutput(input: { canvas_id: string; node_id: string; asset_id: string; metadata?: Record<string, unknown> }) {
+  return apiClient.post<CanvasAssetRegisterOutputResponse>("/canvas-assets/register-output", input);
+}
+
+export function canvasAssetDownloadURL() {
+  return "/api/v1/canvas-assets/download";
 }

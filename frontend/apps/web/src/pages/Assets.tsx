@@ -28,17 +28,11 @@ import {
   Upload,
   X
 } from "lucide-react";
-import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ApiErrorView } from "../components/ApiErrorView";
 import { PageHeader } from "../components/PageHeader";
 
 type ContextMenuState = {
-  asset: AssetRecord;
-  x: number;
-  y: number;
-};
-
-type HoverPreviewState = {
   asset: AssetRecord;
   x: number;
   y: number;
@@ -60,7 +54,7 @@ export function Assets({ canWrite }: { canWrite: boolean }) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [infoAsset, setInfoAsset] = useState<AssetRecord | null>(null);
   const [previewAsset, setPreviewAsset] = useState<AssetRecord | null>(null);
-  const [hoverPreview, setHoverPreview] = useState<HoverPreviewState | null>(null);
+  const [hoverAsset, setHoverAsset] = useState<AssetRecord | null>(null);
   const [mediaType, setMediaType] = useState("");
   const [format, setFormat] = useState("");
   const [sourceType, setSourceType] = useState("");
@@ -245,10 +239,6 @@ export function Assets({ canWrite }: { canWrite: boolean }) {
     setContextMenu(null);
   }
 
-  function updateHoverPreview(event: MouseEvent, asset: AssetRecord) {
-    setHoverPreview({ asset, x: event.clientX, y: event.clientY });
-  }
-
   useEffect(() => {
     void load();
   }, []);
@@ -318,11 +308,14 @@ export function Assets({ canWrite }: { canWrite: boolean }) {
           >
             <span
               className="asset-row-thumb"
-              onMouseEnter={(event) => updateHoverPreview(event, asset)}
-              onMouseMove={(event) => updateHoverPreview(event, asset)}
-              onMouseLeave={() => setHoverPreview(null)}
+              onMouseEnter={() => setHoverAsset(asset)}
+              onMouseLeave={() => setHoverAsset(null)}
             >
-              <AssetRowThumbnail asset={asset} />
+              {asset.thumbnail?.status === "ready" ? (
+                <img src={assetThumbnailURL(asset.id)} alt="" />
+              ) : (
+                <span className="default-thumb"><FileImage size={22} /></span>
+              )}
             </span>
             <span className="asset-row-meta">
               <strong>{asset.name || asset.id}</strong>
@@ -334,7 +327,7 @@ export function Assets({ canWrite }: { canWrite: boolean }) {
         {!assets.length && !busy ? <div className="empty asset-empty">暂无资产</div> : null}
       </div>
 
-      {hoverPreview ? <AssetHoverPreview preview={hoverPreview} /> : null}
+      {hoverAsset ? <AssetHoverPreview asset={hoverAsset} /> : null}
 
       {contextMenu ? (
         <div className="asset-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}>
@@ -410,8 +403,6 @@ function AssetPreview({ asset, onClose }: { asset: AssetRecord; onClose: () => v
       <div className="preview-body">
         {isVideoAsset(asset) ? (
           <video src={assetContentURL(asset.id)} controls autoPlay />
-        ) : isAudioAsset(asset) ? (
-          <audio src={assetContentURL(asset.id)} controls autoPlay />
         ) : isTextAsset(asset) ? (
           <pre>{error || text || "loading..."}</pre>
         ) : isImageAsset(asset) ? (
@@ -424,45 +415,17 @@ function AssetPreview({ asset, onClose }: { asset: AssetRecord; onClose: () => v
   );
 }
 
-type PreviewFrame = {
-  src: string;
-  width: number;
-  height: number;
-};
-
-function AssetRowThumbnail({ asset }: { asset: AssetRecord }) {
-  const [cover, setCover] = useState<PreviewFrame | null>(null);
-
-  useEffect(() => {
-    if (asset.thumbnail?.status === "ready" || (!isVideoAsset(asset) && !isGifAsset(asset))) return undefined;
-    let canceled = false;
-    extractMediaFrames(asset).then((frames) => {
-      if (!canceled) setCover(frames[0] || null);
-    }).catch(() => {
-      if (!canceled) setCover(null);
-    });
-    return () => {
-      canceled = true;
-    };
-  }, [asset.id, asset.thumbnail?.status]);
-
-  if (asset.thumbnail?.status === "ready") {
-    return <img src={assetThumbnailURL(asset.id)} alt="" />;
-  }
-  if (cover) {
-    return <img src={cover.src} alt="" />;
-  }
-  return <span className="default-thumb"><FileImage size={22} /></span>;
-}
-
-function AssetHoverPreview({ preview }: { preview: HoverPreviewState }) {
-  const { asset } = preview;
+function AssetHoverPreview({ asset }: { asset: AssetRecord }) {
   if (isVideoAsset(asset) || isGifAsset(asset)) {
-    return <AnimatedFramePreview preview={preview} />;
+    return (
+      <div className="asset-hover-preview animated-frame-preview">
+        <AnimatedFramePreview asset={asset} />
+      </div>
+    );
   }
   if (asset.thumbnail?.status === "ready") {
     return (
-      <div className="asset-hover-preview" style={previewStyle(preview, asset.width, asset.height)}>
+      <div className="asset-hover-preview">
         <img src={assetThumbnailURL(asset.id)} alt="" />
       </div>
     );
@@ -470,15 +433,14 @@ function AssetHoverPreview({ preview }: { preview: HoverPreviewState }) {
   return null;
 }
 
-function AnimatedFramePreview({ preview }: { preview: HoverPreviewState }) {
-  const { asset } = preview;
-  const [frames, setFrames] = useState<PreviewFrame[]>([]);
+function AnimatedFramePreview({ asset }: { asset: AssetRecord }) {
+  const [frames, setFrames] = useState<string[]>([]);
   const [active, setActive] = useState(0);
 
   useEffect(() => {
     let canceled = false;
     async function extractFrames() {
-      const nextFrames = await extractMediaFrames(asset);
+      const nextFrames = isGifAsset(asset) ? await extractGifFrames(asset) : await extractVideoFrames(asset);
       if (!canceled) {
         setActive(0);
         setFrames(nextFrames);
@@ -494,26 +456,16 @@ function AnimatedFramePreview({ preview }: { preview: HoverPreviewState }) {
 
   useEffect(() => {
     if (frames.length <= 1) return undefined;
-    const timer = window.setInterval(() => setActive((value) => (value + 1) % frames.length), 1000);
+    const timer = window.setInterval(() => setActive((value) => (value + 1) % frames.length), 220);
     return () => window.clearInterval(timer);
   }, [frames.length]);
 
   const fallback = asset.thumbnail?.status === "ready" ? assetThumbnailURL(asset.id) : "";
-  const frame = frames[active];
-  const src = frame?.src || fallback;
-  const style = previewStyle(preview, frame?.width || asset.width, frame?.height || asset.height);
-  return (
-    <div className="asset-hover-preview animated-frame-preview" style={style}>
-      {src ? <img src={src} alt="" /> : <span className="default-thumb">loading preview...</span>}
-    </div>
-  );
+  const src = frames[active] || fallback;
+  return src ? <img src={src} alt="" /> : <span className="default-thumb">loading preview...</span>;
 }
 
-function extractMediaFrames(asset: AssetRecord) {
-  return isGifAsset(asset) ? extractGifFrames(asset) : extractVideoFrames(asset);
-}
-
-async function extractVideoFrames(asset: AssetRecord): Promise<PreviewFrame[]> {
+async function extractVideoFrames(asset: AssetRecord) {
   const video = document.createElement("video");
   video.crossOrigin = "anonymous";
   video.muted = true;
@@ -521,99 +473,48 @@ async function extractVideoFrames(asset: AssetRecord): Promise<PreviewFrame[]> {
   video.preload = "metadata";
   video.load();
   await waitForVideoEvent(video, "loadedmetadata");
-  await waitForVideoEvent(video, "loadeddata");
   const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 1;
-  const fps = 30;
-  const totalFrames = Math.max(1, Math.floor(duration * fps));
-  const frameIndexes = buildFrameIndexes(totalFrames);
+  const points = Array.from({ length: 5 }, (_, index) => duration * ((index + 1) / 6));
   const canvas = document.createElement("canvas");
-  const width = video.videoWidth || asset.width || 420;
-  const height = video.videoHeight || asset.height || 260;
+  const width = 420;
+  const height = 260;
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) return [];
-  const frames: PreviewFrame[] = [];
-  let lastTime = -1;
-  const firstFrameTime = firstPreviewTime(duration);
-  for (const frameIndex of frameIndexes) {
-    const nextTime = frameIndex === 0 ? firstFrameTime : Math.max(firstFrameTime, Math.min(frameIndex / fps, duration));
-    if (nextTime !== lastTime) {
-      video.currentTime = nextTime;
-      await waitForVideoEvent(video, "seeked");
-    }
-    lastTime = nextTime;
+  const frames: string[] = [];
+  for (const point of points) {
+    video.currentTime = point;
+    await waitForVideoEvent(video, "seeked");
     context.drawImage(video, 0, 0, width, height);
-    frames.push({ src: canvas.toDataURL("image/jpeg", 0.78), width, height });
+    frames.push(canvas.toDataURL("image/jpeg", 0.78));
   }
   return frames;
 }
 
-async function extractGifFrames(asset: AssetRecord): Promise<PreviewFrame[]> {
-  const { parseGIF, decompressFrames } = await import("gifuct-js");
-  const resp = await fetch(assetContentURL(asset.id));
-  const buffer = await resp.arrayBuffer();
-  const gif = parseGIF(buffer);
-  const allFrames = decompressFrames(gif, true);
-  if (!allFrames.length) return [];
+async function extractGifFrames(asset: AssetRecord) {
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  const loaded = waitForImage(img);
+  img.src = assetContentURL(asset.id);
+  await loaded;
   const canvas = document.createElement("canvas");
-  const width = gif.lsd.width || asset.width || 420;
-  const height = gif.lsd.height || asset.height || 260;
+  const width = 420;
+  const height = 260;
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) return [];
-  const patchCanvas = document.createElement("canvas");
-  const patchCtx = patchCanvas.getContext("2d");
-  if (!patchCtx) return [];
-  const sampleIndexes = buildFrameIndexes(allFrames.length);
-  const sampleSet = new Set(sampleIndexes);
-  const frames: PreviewFrame[] = [];
-  for (let index = 0; index < allFrames.length && frames.length < 5; index++) {
-    const frame = allFrames[index];
-    const { dims, patch, disposalType } = frame;
-    if (dims.width === 0 || dims.height === 0) continue;
-    patchCanvas.width = dims.width;
-    patchCanvas.height = dims.height;
-    const imageData = new ImageData(new Uint8ClampedArray(patch), dims.width, dims.height);
-    patchCtx.putImageData(imageData, 0, 0);
-    context.drawImage(patchCanvas, dims.left, dims.top);
-    if (sampleSet.has(index)) {
-      frames.push({ src: canvas.toDataURL("image/jpeg", 0.78), width, height });
-    }
-    if (disposalType === 2) {
-      context.clearRect(dims.left, dims.top, dims.width, dims.height);
-    }
-  }
-  while (frames.length > 0 && frames.length < 5) {
-    frames.push(frames[frames.length - 1]);
+  const frames: string[] = [];
+  for (let index = 0; index < 5; index++) {
+    await delay(180);
+    context.drawImage(img, 0, 0, width, height);
+    frames.push(canvas.toDataURL("image/jpeg", 0.78));
   }
   return frames;
 }
 
-function buildFrameIndexes(totalFrames: number) {
-  const step = totalFrames < 100 ? 10 : 20;
-  return Array.from({ length: 5 }, (_, index) => Math.min(index * step, totalFrames - 1));
-}
-
-function firstPreviewTime(duration: number) {
-  return Math.min(0.1, Math.max(0.01, duration / 10));
-}
-
-function previewStyle(preview: HoverPreviewState, width?: number, height?: number): CSSProperties {
-  const gap = 14;
-  const ratio = width && height ? width / height : 16 / 10;
-  const boxWidth = Math.min(520, window.innerWidth - 36);
-  const boxHeight = boxWidth / ratio;
-  return {
-    aspectRatio: `${ratio}`,
-    left: Math.max(gap, Math.min(preview.x + gap, window.innerWidth - boxWidth - gap)),
-    top: Math.max(gap, Math.min(preview.y + gap, window.innerHeight - boxHeight - gap)),
-    width: boxWidth
-  };
-}
-
-function waitForVideoEvent(video: HTMLVideoElement, event: "loadedmetadata" | "loadeddata" | "seeked") {
+function waitForVideoEvent(video: HTMLVideoElement, event: "loadedmetadata" | "seeked") {
   return new Promise<void>((resolve, reject) => {
     const onDone = () => {
       cleanup();
@@ -632,7 +533,16 @@ function waitForVideoEvent(video: HTMLVideoElement, event: "loadedmetadata" | "l
   });
 }
 
+function waitForImage(img: HTMLImageElement) {
+  return new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error("gif preview failed"));
+  });
+}
 
+function delay(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
 
 async function sha256File(file: File) {
   const hash = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
@@ -655,10 +565,6 @@ function isVideoAsset(asset: AssetRecord) {
   return asset.media_type === "video" || asset.mime_type?.startsWith("video/");
 }
 
-function isAudioAsset(asset: AssetRecord) {
-  return asset.media_type === "audio" || asset.mime_type?.startsWith("audio/");
-}
-
 function isTextAsset(asset: AssetRecord) {
   const name = asset.name?.toLowerCase() || "";
   return ["text", "json", "markdown", "prompt", "prompt_template"].includes(asset.media_type) ||
@@ -669,7 +575,7 @@ function isTextAsset(asset: AssetRecord) {
 }
 
 function isPreviewable(asset: AssetRecord) {
-  return isImageAsset(asset) || isVideoAsset(asset) || isAudioAsset(asset) || isTextAsset(asset) || asset.media_type === "pdf";
+  return isImageAsset(asset) || isVideoAsset(asset) || isTextAsset(asset) || asset.media_type === "pdf";
 }
 
 function formatBytes(size?: number) {

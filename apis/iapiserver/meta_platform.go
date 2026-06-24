@@ -69,6 +69,14 @@ const (
 	TaskTypeLLMInvoke      = "llm.invoke"
 	TaskTypeAssetTagging   = "asset.tagging"
 	TaskTypeQueryParse     = "query.parse"
+
+	TaskTypeCanvasRun                   = "canvas.run"
+	TaskTypeCanvasNodeRun               = "canvas.node.run"
+	TaskTypeCanvasWorkflowPackageExport = "canvas.workflow.package.export"
+	TaskTypeCanvasWorkflowPackageImport = "canvas.workflow.package.import"
+	TaskTypeCanvasOutputRegister        = "canvas.output.register"
+	TaskTypeProviderInvoke              = "provider.invoke"
+	TaskTypeProviderQuery               = "provider.query"
 )
 
 type Provider struct {

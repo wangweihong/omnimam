@@ -91,6 +91,13 @@ func installPlatformApis(rg *gin.RouterGroup, storeIns store.Factory) {
 
 	rg.POST("/asset-groups", platformController.CreateAssetGroup)
 
+	canvasAssets := rg.Group("/canvas-assets")
+	{
+		canvasAssets.POST("/download", platformController.DownloadCanvasAssets)
+		canvasAssets.POST("/check", platformController.SearchAssets)
+		canvasAssets.POST("/register-output", platformController.RegisterCanvasOutput)
+	}
+
 	tasks := rg.Group("/tasks")
 	{
 		tasks.GET("", platformController.ListTasks)
@@ -100,6 +107,9 @@ func installPlatformApis(rg *gin.RouterGroup, storeIns store.Factory) {
 		tasks.GET("/:task_id/events", platformController.TaskEvents)
 	}
 	rg.POST("/canvases/:canvas_id/run", platformController.RunCanvas)
+	rg.POST("/canvases/:canvas_id/nodes/:node_id/run", platformController.RunCanvasNode)
+	rg.GET("/canvases/:canvas_id/runs/:task_id", platformController.GetCanvasRun)
+	rg.POST("/canvases/:canvas_id/runs/:task_id/cancel", platformController.CancelCanvasRun)
 }
 
 func installAuthApis(rg *gin.RouterGroup, storeIns store.Factory) {
@@ -230,11 +240,17 @@ func installCanvasApis(rg *gin.RouterGroup, storeIns store.Factory) {
 		canvasv1.GET("", canvasController.ListCanvases)
 		canvasv1.GET("/trash", canvasController.ListTrash)
 		canvasv1.POST("", canvasController.CreateCanvas)
+		canvasv1.POST("/import", canvasController.ImportCanvas)
 		canvasv1.GET("/:canvas_id", canvasController.GetCanvas)
+		canvasv1.GET("/:canvas_id/export", canvasController.ExportCanvas)
 		canvasv1.PATCH("/:canvas_id", canvasController.UpdateCanvasMeta)
 		canvasv1.GET("/:canvas_id/meta", canvasController.GetCanvasMeta)
 		canvasv1.POST("/:canvas_id/meta", canvasController.UpdateCanvasMeta)
 		canvasv1.PUT("/:canvas_id", canvasController.SaveCanvas)
+		canvasv1.POST("/:canvas_id/workflows/export", canvasController.ExportWorkflow)
+		canvasv1.POST("/:canvas_id/workflows/import", canvasController.ImportWorkflow)
+		canvasv1.POST("/:canvas_id/workflows/export-package", canvasController.ExportWorkflowPackage)
+		canvasv1.POST("/:canvas_id/workflows/import-package", canvasController.ImportWorkflowPackage)
 		canvasv1.POST("/:canvas_id/touch", canvasController.TouchCanvas)
 		canvasv1.DELETE("/:canvas_id", canvasController.DeleteCanvas)
 		canvasv1.POST("/:canvas_id/restore", canvasController.RestoreCanvas)

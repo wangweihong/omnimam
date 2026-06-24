@@ -65,6 +65,60 @@ func (cc *CanvasController) SaveCanvas(c *gin.Context) {
 	})
 }
 
+// ExportCanvas returns a JSON canvas document for frontend import/export.
+// It is controlled by the canvas API route and returns graph metadata only,
+// not raw asset content and not async task state.
+func (cc *CanvasController) ExportCanvas(c *gin.Context) {
+	core.Run(c, nil, func(_ any) (any, error) {
+		return cc.srv.Canvases().CanvasExport(c, c.Param("canvas_id"))
+	})
+}
+
+// ImportCanvas creates a new canvas from JSON export data.
+// It never overwrites an existing canvas and does not create async tasks.
+func (cc *CanvasController) ImportCanvas(c *gin.Context) {
+	core.Run(c, &iapiserver.CanvasImportRequest{}, func(r *iapiserver.CanvasImportRequest) (any, error) {
+		return cc.srv.Canvases().CanvasImport(c, r)
+	})
+}
+
+// ExportWorkflow returns a JSON workflow fragment from the canvas graph.
+// It accepts selected nodes/connections from the frontend or falls back to
+// the full canvas graph; no asset binaries are embedded.
+func (cc *CanvasController) ExportWorkflow(c *gin.Context) {
+	req := &iapiserver.CanvasWorkflowExportRequest{}
+	core.Run(c, req, func(r *iapiserver.CanvasWorkflowExportRequest) (any, error) {
+		return cc.srv.Canvases().CanvasWorkflowExport(c, c.Param("canvas_id"), r)
+	})
+}
+
+// ImportWorkflow merges a JSON workflow fragment into an existing canvas.
+// It updates graph metadata synchronously and does not run generation tasks.
+func (cc *CanvasController) ImportWorkflow(c *gin.Context) {
+	req := &iapiserver.CanvasWorkflowImportRequest{}
+	core.Run(c, req, func(r *iapiserver.CanvasWorkflowImportRequest) (any, error) {
+		return cc.srv.Canvases().CanvasWorkflowImport(c, c.Param("canvas_id"), r)
+	})
+}
+
+// ExportWorkflowPackage returns selected workflow JSON with referenced asset metadata.
+// It does not return raw asset content; binary download must use the canvas-assets endpoint.
+func (cc *CanvasController) ExportWorkflowPackage(c *gin.Context) {
+	req := &iapiserver.CanvasWorkflowPackageExportRequest{}
+	core.Run(c, req, func(r *iapiserver.CanvasWorkflowPackageExportRequest) (any, error) {
+		return cc.srv.Canvases().CanvasWorkflowPackageExport(c, c.Param("canvas_id"), r)
+	})
+}
+
+// ImportWorkflowPackage merges a workflow package into the current canvas.
+// It updates graph metadata and creates an audit task, but does not run generation.
+func (cc *CanvasController) ImportWorkflowPackage(c *gin.Context) {
+	req := &iapiserver.CanvasWorkflowPackageImportRequest{}
+	core.Run(c, req, func(r *iapiserver.CanvasWorkflowPackageImportRequest) (any, error) {
+		return cc.srv.Canvases().CanvasWorkflowPackageImport(c, c.Param("canvas_id"), r)
+	})
+}
+
 func (cc *CanvasController) TouchCanvas(c *gin.Context) {
 	core.Run(c, nil, func(_ any) (any, error) {
 		return cc.srv.Canvases().CanvasTouch(c, c.Param("canvas_id"))
