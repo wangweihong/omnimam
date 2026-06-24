@@ -27,6 +27,7 @@ import type {
   ProviderListResponse,
   ProviderModelListResponse,
   ProviderModelSyncResponse,
+  ProviderPresetListResponse,
   ProviderTestResponse,
   SystemLLMConfig,
   SystemLLMConfigListResponse,
@@ -39,6 +40,14 @@ export function getMe() {
 
 export function listProviders() {
   return apiClient.get<ProviderListResponse>("/providers");
+}
+
+export function listProviderPresets() {
+  return apiClient.get<ProviderPresetListResponse>("/provider-presets");
+}
+
+export function installProviderPreset(presetKey: string) {
+  return apiClient.post("/provider-presets/" + encodeURIComponent(presetKey) + "/install");
 }
 
 export function createProvider(input: Record<string, unknown>) {
@@ -66,7 +75,7 @@ export function updateProviderModel(providerID: string, modelID: string, input: 
 }
 
 export function syncProviderModels(providerID: string) {
-  return apiClient.post<ProviderModelSyncResponse>(`/providers/${providerID}/models/sync`);
+  return apiClient.post<ProviderModelSyncResponse>(`/providers/${providerID}/models/sync`, {});
 }
 
 export function getSystemLLMConfig() {

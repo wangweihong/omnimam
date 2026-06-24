@@ -30,6 +30,8 @@ export interface Provider {
   base_url?: string;
   auth_type?: string;
   credential_ref?: string;
+  preset_key?: string;
+  config?: Record<string, unknown>;
 }
 
 export interface ProviderModel {
@@ -37,9 +39,43 @@ export interface ProviderModel {
   name: string;
   provider_id: string;
   model: string;
+  endpoint_type?: string;
+  group_name?: string;
   capabilities?: string[];
+  model_types?: string[];
   enabled: boolean;
   default_params?: Record<string, unknown>;
+  pricing?: Record<string, unknown>;
+}
+
+export interface ProviderAPISetting {
+  key: string;
+  label: string;
+  description?: string;
+  type: "boolean" | "string" | "number" | string;
+  default?: unknown;
+}
+
+export interface ProviderModelTypeRule {
+  contains?: string[];
+  model_types?: string[];
+  group_name?: string;
+  endpoint_type?: string;
+}
+
+export interface ProviderPreset {
+  key: string;
+  name: string;
+  type: string;
+  base_url?: string;
+  auth_type?: string;
+  icon?: string;
+  api_settings_schema?: ProviderAPISetting[];
+  model_type_rules?: ProviderModelTypeRule[];
+}
+
+export interface ProviderPresetListResponse {
+  presets: ProviderPreset[];
 }
 
 export interface ProviderTestResponse {
