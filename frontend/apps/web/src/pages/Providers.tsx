@@ -42,11 +42,11 @@ import {
   X,
   Zap
 } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ApiErrorView } from "../components/ApiErrorView";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { PageHeader } from "../components/PageHeader";
-import { ToastViewport, type ToastMessage, type ToastTone } from "../components/ToastViewport";
+import { useToast } from "../components/ToastViewport";
 
 const defaultPurposes = [
   {
@@ -155,6 +155,7 @@ function modelDraftFrom(model: ProviderModel): ModelDraft {
 }
 
 export function Providers({ canWrite }: { canWrite: boolean }) {
+  const toast = useToast();
   const [section, setSection] = useState<"services" | "defaults">("services");
   const [providers, setProviders] = useState<Provider[]>([]);
   const [presets, setPresets] = useState<ProviderPreset[]>([]);
@@ -178,9 +179,8 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
   const [apiSettingsOpen, setAPISettingsOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<ProviderModel | null>(null);
   const [modelDraft, setModelDraft] = useState<ModelDraft | null>(null);
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [busy, setBusy] = useState("");
-  const [error, setError] = useState<unknown>(null);
+  const [pageError, setPageError] = useState<unknown>(null);
   const [contextMenu, setContextMenu] = useState<ProviderContextMenuState | null>(null);
   const [remarkState, setRemarkState] = useState<ProviderRemarkState | null>(null);
   const [providerEditState, setProviderEditState] = useState<ProviderEditState | null>(null);
@@ -197,7 +197,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
   );
 
   async function load() {
-    setError(null);
+    setPageError(null);
     try {
       const [providerResp, presetResp, configResp] = await Promise.all([
         listProviders(),
@@ -214,7 +214,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       );
       setModels(Object.fromEntries(entries));
     } catch (err) {
-      setError(err);
+      setPageError(err);
     }
   }
 
@@ -235,15 +235,6 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
     });
     setApiKey("");
   }, [selected]);
-
-  const pushToast = useCallback((tone: ToastTone, title: string, detail?: string) => {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    setToasts((current) => [...current, { id, tone, title, detail }].slice(-4));
-  }, []);
-
-  const dismissToast = useCallback((id: string) => {
-    setToasts((current) => current.filter((message) => message.id !== id));
-  }, []);
 
   const filteredProviders = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -278,7 +269,9 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
     const name = String(form.get("name") || "").trim() || option.label;
     setAddProviderError(null);
     if (providerNameExists(name)) {
-      setAddProviderError(new Error(`模型提供商名称「${name}」已存在`));
+      const err = new Error(`模型提供商名称「${name}」已存在`);
+      setAddProviderError(err);
+      toast.error("模型提供商添加失败", err);
       return;
     }
     setBusy("add-provider");
@@ -295,10 +288,11 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       formElement.reset();
       setAddProviderOpen(false);
       setAddProviderError(null);
-      pushToast("success", "模型提供商已添加", name);
+      toast.success("模型提供商已添加", name);
       await load();
     } catch (err) {
       setAddProviderError(err);
+      toast.error("模型提供商添加失败", err);
     } finally {
       setBusy("");
     }
@@ -308,21 +302,20 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
     if (!selected) return;
     const nextName = draft.name.trim();
     if (providerNameExists(nextName, selected.id)) {
-      setError(new Error(`模型提供商名称「${nextName}」已存在`));
+      toast.error("模型提供商保存失败", new Error(`模型提供商名称「${nextName}」已存在`));
       return;
     }
     setBusy("save-provider");
-    setError(null);
     try {
       const input: Record<string, unknown> = { ...draft };
       if (apiKey.trim()) {
         input.credential_ref = apiKey.trim();
       }
       await updateProvider(selected.id, input);
-      pushToast("success", "模型提供商已保存", nextName);
+      toast.success("模型提供商已保存", nextName);
       await load();
     } catch (err) {
-      setError(err);
+      toast.error("模型提供商保存失败", err);
     } finally {
       setBusy("");
     }
@@ -331,13 +324,12 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
   async function testCurrentProvider() {
     if (!selected) return;
     setBusy("test-provider");
-    setError(null);
     try {
       const resp = await testProvider(selected.id, { ...draft, credential_ref: apiKey.trim() });
       const detail = Number.isFinite(resp.latency_ms) ? `响应 ${resp.latency_ms} ms` : undefined;
-      pushToast("success", "连接成功", detail);
+      toast.success("连接成功", detail);
     } catch (err) {
-      setError(err);
+      toast.error("连接检测失败", err);
     } finally {
       setBusy("");
     }
@@ -346,14 +338,13 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
   async function syncModels() {
     if (!selected) return;
     setBusy("sync-models");
-    setError(null);
     try {
       const resp = await syncProviderModels(selected.id);
       setModels((current) => ({ ...current, [selected.id]: resp.models || [] }));
       const detail = `新增 ${resp.created}，更新 ${resp.updated}，跳过 ${resp.skipped}`;
-      pushToast("success", "模型列表已同步", detail);
+      toast.success("模型列表已同步", detail);
     } catch (err) {
-      setError(err);
+      toast.error("模型列表同步失败", err);
     } finally {
       setBusy("");
     }
@@ -368,11 +359,10 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
     const model = String(form.get("model") || "").trim();
     const duplicateMessage = findModelDuplicateMessage(selectedProvider, name, model);
     if (duplicateMessage) {
-      setError(new Error(duplicateMessage));
+      toast.error("模型添加失败", new Error(duplicateMessage));
       return;
     }
     setBusy("add-model");
-    setError(null);
     try {
       await createProviderModel(selectedProvider, {
         name,
@@ -384,10 +374,10 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
         enabled: true
       });
       formElement.reset();
-      pushToast("success", "模型已添加", name);
+      toast.success("模型已添加", name);
       await load();
     } catch (err) {
-      setError(err);
+      toast.error("模型添加失败", err);
     } finally {
       setBusy("");
     }
@@ -399,7 +389,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       await updateProviderModel(model.provider_id, model.id, { enabled: !model.enabled });
       await load();
     } catch (err) {
-      setError(err);
+      toast.error(model.enabled ? "模型禁用失败" : "模型启用失败", err);
     } finally {
       setBusy("");
     }
@@ -419,11 +409,10 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       editingModel.id
     );
     if (duplicateMessage) {
-      setError(new Error(duplicateMessage));
+      toast.error("模型配置保存失败", new Error(duplicateMessage));
       return;
     }
     setBusy("save-model");
-    setError(null);
     try {
       await updateProviderModel(editingModel.provider_id, editingModel.id, {
         name: modelDraft.name,
@@ -440,10 +429,10 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       });
       setEditingModel(null);
       setModelDraft(null);
-      pushToast("success", "模型配置已保存", modelDraft.name);
+      toast.success("模型配置已保存", modelDraft.name);
       await load();
     } catch (err) {
-      setError(err);
+      toast.error("模型配置保存失败", err);
     } finally {
       setBusy("");
     }
@@ -453,7 +442,6 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
     const model = enabledModels.find((item) => item.id === modelID);
     if (!model) return;
     setBusy(purpose);
-    setError(null);
     try {
       const next = configs.filter((item) => item.purpose !== purpose);
       next.push({
@@ -465,9 +453,9 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       });
       const resp = await putSystemLLMConfig(next);
       setConfigs(resp.configs || next);
-      pushToast("success", "默认模型已保存", model.name || model.model);
+      toast.success("默认模型已保存", model.name || model.model);
     } catch (err) {
-      setError(err);
+      toast.error("默认模型保存失败", err);
     } finally {
       setBusy("");
     }
@@ -485,7 +473,6 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
 
   async function deleteProviderAction(provider: Provider) {
     setBusy("delete-provider");
-    setError(null);
     try {
       await deleteProvider(provider.id);
       setContextMenu(null);
@@ -494,10 +481,10 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       if (selectedProvider === provider.id) {
         setSelectedProvider("");
       }
-      pushToast("success", "模型提供商已删除", provider.name);
+      toast.success("模型提供商已删除", provider.name);
       await load();
     } catch (err) {
-      setError(err);
+      toast.error("模型提供商删除失败", err);
     } finally {
       setBusy("");
     }
@@ -532,7 +519,9 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
     if (!providerEditState) return;
     const nextName = providerEditState.name.trim();
     if (providerNameExists(nextName, providerEditState.provider.id)) {
-      setProviderEditState((current) => current ? { ...current, error: new Error(`模型提供商名称「${nextName}」已存在`) } : current);
+      const err = new Error(`模型提供商名称「${nextName}」已存在`);
+      setProviderEditState((current) => current ? { ...current, error: err } : current);
+      toast.error("模型提供商保存失败", err);
       return;
     }
     setBusy("edit-provider");
@@ -543,10 +532,11 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
         type: providerEditState.type
       });
       setProviderEditState(null);
-      pushToast("success", "模型提供商已保存", nextName);
+      toast.success("模型提供商已保存", nextName);
       await load();
     } catch (err) {
       setProviderEditState((current) => current ? { ...current, error: err } : current);
+      toast.error("模型提供商保存失败", err);
     } finally {
       setBusy("");
     }
@@ -554,13 +544,12 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
 
   return (
     <section onClick={() => setContextMenu(null)}>
-      <ToastViewport messages={toasts} onDismiss={dismissToast} />
       <PageHeader
         title="模型设置"
         description="管理模型提供商、模型能力标签、Provider API 设置和系统默认模型。"
         actions={<button className="button" type="button" onClick={() => void load()}><RefreshCw size={16} /> 刷新</button>}
       />
-      <ApiErrorView error={error} />
+      <ApiErrorView error={pageError} />
 
       <div className="settings-layout">
         <aside className="settings-nav panel">
@@ -837,16 +826,15 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
                   const target = providers.find((p) => p.id === remarkState.provider.id);
                   if (!target) return;
                   setBusy("save-provider");
-                  setError(null);
                   try {
                     await updateProvider(target.id, {
                       config: { ...(target.config || {}), remark: remarkState.value }
                     });
                     setRemarkState(null);
-                    pushToast("success", "备注已保存", target.name);
+                    toast.success("备注已保存", target.name);
                     await load();
                   } catch (err) {
-                    setError(err);
+                    toast.error("备注保存失败", err);
                   } finally {
                     setBusy("");
                   }
