@@ -1,4 +1,22 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  createProvider,
+  createProviderModel,
+  deleteProvider,
+  getSystemLLMConfig,
+  listProviderModels,
+  listProviderPresets,
+  listProviders,
+  putSystemLLMConfig,
+  syncProviderModels,
+  testProvider,
+  updateProvider,
+  updateProviderModel,
+  type Provider,
+  type ProviderAPISetting,
+  type ProviderModel,
+  type ProviderPreset,
+  type SystemLLMConfig
+} from "@omnimam/shared";
 import {
   Bot,
   Box,
@@ -19,28 +37,13 @@ import {
   Settings2,
   SlidersHorizontal,
   Sparkles,
+  StickyNote,
+  Trash2,
   Wrench,
   X,
   Zap
 } from "lucide-react";
-import {
-  createProvider,
-  createProviderModel,
-  getSystemLLMConfig,
-  listProviderModels,
-  listProviderPresets,
-  listProviders,
-  putSystemLLMConfig,
-  syncProviderModels,
-  testProvider,
-  updateProvider,
-  updateProviderModel,
-  type Provider,
-  type ProviderAPISetting,
-  type ProviderModel,
-  type ProviderPreset,
-  type SystemLLMConfig
-} from "@omnimam/shared";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ApiErrorView } from "../components/ApiErrorView";
 import { PageHeader } from "../components/PageHeader";
 import { StatusBadge } from "../components/StatusBadge";
@@ -110,6 +113,12 @@ interface ModelDraft {
   pricing_output: string;
 }
 
+type ProviderContextMenuState = {
+  provider: Provider;
+  x: number;
+  y: number;
+};
+
 function parseCapabilities(value: FormDataEntryValue | string | null) {
   return String(value || "")
     .split(/[,，\s]+/)
@@ -157,6 +166,8 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState<unknown>(null);
+  const [contextMenu, setContextMenu] = useState<ProviderContextMenuState | null>(null);
+  const [remarkProvider, setRemarkProvider] = useState<Provider | null>(null);
 
   const selected = useMemo(() => providers.find((provider) => provider.id === selectedProvider), [providers, selectedProvider]);
   const providerModels = models[selectedProvider] || [];
@@ -385,8 +396,46 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
     }
   }
 
+  function openProviderContextMenu(event: React.MouseEvent, provider: Provider) {
+    event.preventDefault();
+    const menuWidth = 180;
+    const menuHeight = 150;
+    const x = Math.min(event.clientX, window.innerWidth - menuWidth - 12);
+    const y = Math.min(event.clientY, window.innerHeight - menuHeight - 12);
+    setSelectedProvider(provider.id);
+    setContextMenu({ provider, x: Math.max(12, x), y: Math.max(12, y) });
+  }
+
+  async function deleteProviderAction(provider: Provider) {
+    if (!window.confirm(`确定删除「${provider.name}」吗？此操作不可撤销。`)) return;
+    setBusy("delete-provider");
+    setError(null);
+    try {
+      await deleteProvider(provider.id);
+      setContextMenu(null);
+      if (selectedProvider === provider.id) {
+        setSelectedProvider("");
+      }
+      await load();
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function openRemarkDialog(provider: Provider) {
+    setContextMenu(null);
+    setRemarkProvider(provider);
+  }
+
+  function openEditProvider(provider: Provider) {
+    setContextMenu(null);
+    setSelectedProvider(provider.id);
+  }
+
   return (
-    <section>
+    <section onClick={() => setContextMenu(null)}>
       <PageHeader
         title="模型设置"
         description="管理模型服务、模型能力标签、Provider API 设置和系统默认模型。"
@@ -415,11 +464,13 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
               </div>
               <div className="provider-section-title">已配置服务</div>
               <div className="list">
+                {/* 每个云提供商渲染成一个button */}
                 {filteredProviders.map((provider) => (
                   <button
                     className={`list-row ${selectedProvider === provider.id ? "selected" : ""}`}
                     key={provider.id}
                     onClick={() => setSelectedProvider(provider.id)}
+                    onContextMenu={(event) => openProviderContextMenu(event, provider)}
                     type="button"
                   >
                     <span>
@@ -434,6 +485,13 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
                 <button className="button primary add-provider-button" type="button" onClick={() => setAddProviderOpen(true)}>
                   <Plus size={16} /> 添加
                 </button>
+              ) : null}
+              {contextMenu ? (
+                <div className="provider-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}>
+                  <button type="button" onClick={() => openEditProvider(contextMenu.provider)}><Pencil size={16} /> 编辑</button>
+                  <button type="button" onClick={() => openRemarkDialog(contextMenu.provider)}><StickyNote size={16} /> 备注</button>
+                  <button type="button" onClick={() => void deleteProviderAction(contextMenu.provider)} disabled={!canWrite || busy === "delete-provider"}><Trash2 size={16} /> 删除</button>
+                </div>
               ) : null}
             </div>
 
@@ -623,6 +681,54 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
           onSave={() => void saveModelEditor()}
           onChange={setModelDraft}
         />
+      ) : null}
+      {remarkProvider ? (
+        <div className="provider-remark-backdrop" onClick={() => setRemarkProvider(null)}>
+          <div className="provider-remark-dialog" onClick={(event) => event.stopPropagation()}>
+            <h3>备注 - {remarkProvider.name}</h3>
+            <textarea
+              className="provider-remark-textarea"
+              placeholder="输入备注内容..."
+              defaultValue={String((remarkProvider.config as Record<string, unknown>)?.remark || "")}
+              onChange={(event) => {
+                const value = event.target.value;
+                setProviders((current) =>
+                  current.map((p) =>
+                    p.id === remarkProvider.id
+                      ? { ...p, config: { ...(p.config || {}), remark: value } }
+                      : p
+                  )
+                );
+              }}
+            />
+            <div className="provider-remark-actions">
+              <button className="button" type="button" onClick={() => setRemarkProvider(null)}>取消</button>
+              <button
+                className="button primary"
+                type="button"
+                disabled={!canWrite || busy === "save-provider"}
+                onClick={async () => {
+                  const target = providers.find((p) => p.id === remarkProvider.id);
+                  if (!target) return;
+                  setBusy("save-provider");
+                  setError(null);
+                  try {
+                    await updateProvider(target.id, { config: target.config });
+                    setRemarkProvider(null);
+                    setNotice("备注已保存");
+                    await load();
+                  } catch (err) {
+                    setError(err);
+                  } finally {
+                    setBusy("");
+                  }
+                }}
+              >
+                <Save size={16} /> 保存
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </section>
   );

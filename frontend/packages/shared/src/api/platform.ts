@@ -1,28 +1,28 @@
 import { apiClient } from "./client";
 import type {
-  AssetListResponse,
   AssetChunkUploadCancelResponse,
   AssetChunkUploadInitResponse,
   AssetChunkUploadPartResponse,
+  AssetListResponse,
   AssetSearchParseResponse,
   AssetUploadResponse,
+  CanvasAssetRegisterOutputResponse,
   CanvasConnection,
   CanvasCreateResponse,
   CanvasDetail,
   CanvasExportPayload,
   CanvasExportResponse,
   CanvasGetResponse,
-  CanvasListResponse,
   CanvasImportResponse,
+  CanvasListResponse,
   CanvasNode,
+  CanvasRunResponse,
   CanvasViewport,
   CanvasWorkflowExportResponse,
   CanvasWorkflowImportResponse,
   CanvasWorkflowPackageExportResponse,
   CanvasWorkflowPackageImportResponse,
   CanvasWorkflowPayload,
-  CanvasRunResponse,
-  CanvasAssetRegisterOutputResponse,
   MeResponse,
   ProviderListResponse,
   ProviderModelListResponse,
@@ -57,6 +57,11 @@ export function createProvider(input: Record<string, unknown>) {
 export function updateProvider(providerID: string, input: Record<string, unknown>) {
   return apiClient.patch(`/providers/${providerID}`, input);
 }
+
+export function deleteProvider(providerID: string) {
+  return apiClient.delete(`/providers/${providerID}`);
+}
+
 
 export function testProvider(providerID: string, input: Record<string, unknown>) {
   return apiClient.post<ProviderTestResponse>(`/providers/${providerID}/test`, input);
