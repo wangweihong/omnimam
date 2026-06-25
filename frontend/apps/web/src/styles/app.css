@@ -911,9 +911,20 @@ select {
   color: var(--text);
 }
 
+.model-type-picker button:hover:not(:disabled) {
+  border-color: #c7cdd7;
+  background: var(--panel-soft);
+}
+
 .model-type-picker button.selected {
   border-color: var(--accent);
-  background: var(--panel-soft);
+  background: #f4f6f8;
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.model-type-picker button.selected svg {
+  stroke-width: 2.4;
 }
 
 .asset-dialog-title {
@@ -1390,6 +1401,15 @@ select {
   color: var(--good);
 }
 
+.model-stream-toggle {
+  width: 42px;
+  min-width: 42px;
+  height: 22px;
+  padding: 0;
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .settings-form {
   display: grid;
   gap: 14px;
@@ -1470,6 +1490,52 @@ select {
   border-radius: 8px;
   background: #fff;
   color: var(--text);
+}
+
+.model-type-icon[data-model-type="vision"],
+.model-type-picker button[data-model-type="vision"].selected {
+  border-color: #b8c4d9;
+  background: #f4f7fb;
+  color: #35516f;
+}
+
+.model-type-icon[data-model-type="web"],
+.model-type-picker button[data-model-type="web"].selected {
+  border-color: #aac9c2;
+  background: #f1f8f6;
+  color: #246158;
+}
+
+.model-type-icon[data-model-type="reasoning"],
+.model-type-picker button[data-model-type="reasoning"].selected {
+  border-color: #c5b8dc;
+  background: #f7f4fb;
+  color: #594579;
+}
+
+.model-type-icon[data-model-type="tool"],
+.model-type-picker button[data-model-type="tool"].selected {
+  border-color: #d1b99b;
+  background: #fbf7f1;
+  color: #72502e;
+}
+
+.model-type-icon[data-model-type="rerank"],
+.model-type-picker button[data-model-type="rerank"].selected {
+  border-color: #b8c0ce;
+  background: #f5f7fa;
+  color: #3f4d63;
+}
+
+.model-type-icon[data-model-type="embedding"],
+.model-type-picker button[data-model-type="embedding"].selected {
+  border-color: #b8cbb5;
+  background: #f3f8f2;
+  color: #3f633d;
+}
+
+.model-type-picker button.selected {
+  box-shadow: inset 0 0 0 1px currentColor;
 }
 
 .model-type-icon:hover::after {

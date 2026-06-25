@@ -916,7 +916,7 @@ function ModelTypeIcons({ types }: { types: string[] }) {
         const option = modelTypeOptions.find((item) => item.key === type);
         const Icon = option?.icon || Sparkles;
         return (
-          <span className="model-type-icon" data-tooltip={option?.label || type} key={type}>
+          <span className="model-type-icon" data-model-type={type} data-tooltip={option?.label || type} key={type}>
             <Icon size={14} />
           </span>
         );
@@ -1157,6 +1157,7 @@ function ModelEditModal({
                 return (
                   <button
                     className={draft.model_types.includes(item.key) ? "selected" : ""}
+                    data-model-type={item.key}
                     disabled={!canWrite}
                     key={item.key}
                     type="button"
@@ -1171,7 +1172,7 @@ function ModelEditModal({
           <label>
             <span>支持增量文本输出</span>
             <button
-              className={`toggle ${draft.supports_stream ? "on" : ""}`}
+              className={`toggle model-stream-toggle ${draft.supports_stream ? "on" : ""}`}
               disabled={!canWrite}
               type="button"
               onClick={() => onChange({ ...draft, supports_stream: !draft.supports_stream })}
