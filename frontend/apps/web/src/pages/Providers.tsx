@@ -4,7 +4,6 @@ import {
   deleteProvider,
   getSystemLLMConfig,
   listProviderModels,
-  listProviderPresets,
   listProviders,
   putSystemLLMConfig,
   syncProviderModels,
@@ -12,9 +11,7 @@ import {
   updateProvider,
   updateProviderModel,
   type Provider,
-  type ProviderAPISetting,
   type ProviderModel,
-  type ProviderPreset,
   type SystemLLMConfig
 } from "@omnimam/shared";
 import {
@@ -33,7 +30,6 @@ import {
   RefreshCw,
   Save,
   Search,
-  Settings2,
   SlidersHorizontal,
   Sparkles,
   StickyNote,
@@ -158,7 +154,6 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
   const toast = useToast();
   const [section, setSection] = useState<"services" | "defaults">("services");
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [presets, setPresets] = useState<ProviderPreset[]>([]);
   const [models, setModels] = useState<Record<string, ProviderModel[]>>({});
   const [configs, setConfigs] = useState<SystemLLMConfig[]>([]);
   const [selectedProvider, setSelectedProvider] = useState("");
@@ -176,7 +171,6 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
   });
   const [addProviderOpen, setAddProviderOpen] = useState(false);
   const [addProviderError, setAddProviderError] = useState<unknown>(null);
-  const [apiSettingsOpen, setAPISettingsOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<ProviderModel | null>(null);
   const [modelDraft, setModelDraft] = useState<ModelDraft | null>(null);
   const [busy, setBusy] = useState("");
@@ -189,8 +183,8 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
   const selected = useMemo(() => providers.find((provider) => provider.id === selectedProvider), [providers, selectedProvider]);
   const providerModels = models[selectedProvider] || [];
   const providerByID = useMemo(() => Object.fromEntries(providers.map((provider) => [provider.id, provider])), [providers]);
-  const presetByKey = useMemo(() => Object.fromEntries(presets.map((preset) => [preset.key, preset])), [presets]);
-  const selectedPreset = selected?.preset_key ? presetByKey[selected.preset_key] : undefined;
+  const hasSavedAPIKey = selected?.credential_ref === "configured";
+  const canTestProvider = Boolean(selected && draft.base_url.trim() && (apiKey.trim() || hasSavedAPIKey));
   const enabledModels = useMemo(
     () => Object.values(models).flat().filter((model) => model.enabled && providerByID[model.provider_id]?.enabled),
     [models, providerByID]
@@ -199,28 +193,38 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
   async function load() {
     setPageError(null);
     try {
-      const [providerResp, presetResp, configResp] = await Promise.all([
+      const [providerResp, configResp] = await Promise.all([
         listProviders(),
-        listProviderPresets(),
         getSystemLLMConfig()
       ]);
       const nextProviders = providerResp.providers || [];
       setProviders(nextProviders);
-      setPresets(presetResp.presets || []);
       setConfigs(configResp.configs || []);
       setSelectedProvider((current) => current || nextProviders[0]?.id || "");
-      const entries = await Promise.all(
-        nextProviders.map(async (provider) => [provider.id, (await listProviderModels(provider.id)).models || []] as const)
-      );
-      setModels(Object.fromEntries(entries));
+      // const entries = await Promise.all(
+      //   nextProviders.map(async (provider) => [provider.id, (await listProviderModels(provider.id)).models || []] as const)
+      // );
+      //setModels(Object.fromEntries(entries));
     } catch (err) {
-      setPageError(err);
+      setPageError(err);``
     }
   }
 
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    if (!selectedProvider) return;
+    let cancelled = false;
+    listProviderModels(selectedProvider)
+      .then((resp) => {
+        if (cancelled) return;
+        setModels((current) => ({ ...current, [selectedProvider]: resp.models || [] }));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [selectedProvider]);
 
   useEffect(() => {
     if (!selected) return;
@@ -323,9 +327,17 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
 
   async function testCurrentProvider() {
     if (!selected) return;
+    if (!canTestProvider) {
+      toast.error("连接检测不可用", new Error("请先填写 API 地址和 API 密钥"));
+      return;
+    }
     setBusy("test-provider");
     try {
-      const resp = await testProvider(selected.id, { ...draft, credential_ref: apiKey.trim() });
+      const input: Record<string, unknown> = { ...draft };
+      if (apiKey.trim()) {
+        input.credential_ref = apiKey.trim();
+      }
+      const resp = await testProvider(selected.id, input);
       const detail = Number.isFinite(resp.latency_ms) ? `响应 ${resp.latency_ms} ms` : undefined;
       toast.success("连接成功", detail);
     } catch (err) {
@@ -546,7 +558,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
     <section onClick={() => setContextMenu(null)}>
       <PageHeader
         title="模型设置"
-        description="管理模型提供商、模型能力标签、Provider API 设置和系统默认模型。"
+        description="管理模型提供商、API 地址、模型能力标签和系统默认模型。"
         actions={<button className="button" type="button" onClick={() => void load()}><RefreshCw size={16} /> 刷新</button>}
       />
       <ApiErrorView error={pageError} />
@@ -581,7 +593,6 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
                   >
                     <span>
                       <strong>{provider.name}</strong>
-                      <small>{provider.type} · {provider.base_url || "未配置 API 地址"}</small>
                     </span>
                     {provider.enabled ? <span className="status good">ON</span> : null}
                   </button>
@@ -614,7 +625,6 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
                   <div className="provider-detail-head">
                     <div>
                       <h2>{selected.name}</h2>
-                      <small>{selected.id}</small>
                     </div>
                     <button
                       className={`toggle ${draft.enabled ? "on" : ""}`}
@@ -640,7 +650,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
                         <button className="icon-button button" type="button" onClick={() => setShowKey((value) => !value)}>
                           {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
-                        <button className="button" type="button" disabled={!selected || busy === "test-provider"} onClick={() => void testCurrentProvider()}>
+                        <button className="button" type="button" disabled={!canTestProvider || busy === "test-provider"} onClick={() => void testCurrentProvider()}>
                           检测
                         </button>
                       </div>
@@ -657,9 +667,6 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
                       <small>预览：{previewChatEndpoint(draft.base_url)}</small>
                     </label>
                     <div className="form-actions">
-                      <button className="button" type="button" onClick={() => setAPISettingsOpen(true)}>
-                        <Settings2 size={16} /> API 设置
-                      </button>
                       <button className="button primary" type="button" disabled={!canWrite || busy === "save-provider"} onClick={() => void saveProvider()}>
                         <Save size={16} /> 保存服务
                       </button>
@@ -751,16 +758,6 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
           </div>
         )}
       </div>
-
-      {apiSettingsOpen ? (
-        <APISettingsModal
-          canWrite={canWrite}
-          schema={selectedPreset?.api_settings_schema || []}
-          config={draft.config}
-          onClose={() => setAPISettingsOpen(false)}
-          onChange={(nextConfig) => setDraft((current) => ({ ...current, config: nextConfig }))}
-        />
-      ) : null}
 
       {addProviderOpen ? (
         <AddProviderModal
@@ -882,68 +879,6 @@ function ModelTypeIcons({ types }: { types: string[] }) {
         );
       })}
     </span>
-  );
-}
-
-function APISettingsModal({
-  canWrite,
-  schema,
-  config,
-  onClose,
-  onChange
-}: {
-  canWrite: boolean;
-  schema: ProviderAPISetting[];
-  config: Record<string, unknown>;
-  onClose: () => void;
-  onChange: (config: Record<string, unknown>) => void;
-}) {
-  function setValue(key: string, value: unknown) {
-    onChange({ ...config, [key]: value });
-  }
-
-  return (
-    <div className="asset-modal-backdrop" role="presentation">
-      <div className="settings-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
-        <div className="dialog-head">
-          <div>
-            <h3>API 设置</h3>
-            <small>不同模型提供商通过 schema 渲染专属 API 开关。</small>
-          </div>
-          <button className="icon-button button" type="button" onClick={onClose}><X size={16} /></button>
-        </div>
-        <div className="settings-form">
-          {schema.length === 0 ? <div className="empty-state">当前提供商没有额外 API 设置。</div> : null}
-          {schema.map((setting) => (
-            <label className="setting-toggle-row" key={setting.key}>
-              <span>
-                <strong>{setting.label}</strong>
-                <small>{setting.description || setting.key}</small>
-              </span>
-              {setting.type === "boolean" ? (
-                <button
-                  className={`toggle ${Boolean(config[setting.key] ?? setting.default) ? "on" : ""}`}
-                  disabled={!canWrite}
-                  type="button"
-                  onClick={() => setValue(setting.key, !Boolean(config[setting.key] ?? setting.default))}
-                >
-                  {Boolean(config[setting.key] ?? setting.default) ? "ON" : ""}
-                </button>
-              ) : (
-                <input
-                  disabled={!canWrite}
-                  value={String(config[setting.key] ?? setting.default ?? "")}
-                  onChange={(event) => setValue(setting.key, event.target.value)}
-                />
-              )}
-            </label>
-          ))}
-        </div>
-        <div className="form-actions">
-          <button className="button primary" type="button" onClick={onClose}>完成</button>
-        </div>
-      </div>
-    </div>
   );
 }
 
