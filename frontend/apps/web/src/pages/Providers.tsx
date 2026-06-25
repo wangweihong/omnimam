@@ -21,7 +21,6 @@ import {
   Bot,
   Box,
   Brain,
-  CheckCircle2,
   Eye,
   EyeOff,
   Filter,
@@ -43,10 +42,11 @@ import {
   X,
   Zap
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ApiErrorView } from "../components/ApiErrorView";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { PageHeader } from "../components/PageHeader";
+import { ToastViewport, type ToastMessage, type ToastTone } from "../components/ToastViewport";
 
 const defaultPurposes = [
   {
@@ -178,7 +178,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
   const [apiSettingsOpen, setAPISettingsOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<ProviderModel | null>(null);
   const [modelDraft, setModelDraft] = useState<ModelDraft | null>(null);
-  const [notice, setNotice] = useState("");
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState<unknown>(null);
   const [contextMenu, setContextMenu] = useState<ProviderContextMenuState | null>(null);
@@ -234,8 +234,16 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       config: { ...(selected.config || {}) }
     });
     setApiKey("");
-    setNotice("");
   }, [selected]);
+
+  const pushToast = useCallback((tone: ToastTone, title: string, detail?: string) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setToasts((current) => [...current, { id, tone, title, detail }].slice(-4));
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((current) => current.filter((message) => message.id !== id));
+  }, []);
 
   const filteredProviders = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -287,7 +295,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       formElement.reset();
       setAddProviderOpen(false);
       setAddProviderError(null);
-      setNotice("模型提供商已添加");
+      pushToast("success", "模型提供商已添加", name);
       await load();
     } catch (err) {
       setAddProviderError(err);
@@ -311,7 +319,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
         input.credential_ref = apiKey.trim();
       }
       await updateProvider(selected.id, input);
-      setNotice("模型提供商已保存");
+      pushToast("success", "模型提供商已保存", nextName);
       await load();
     } catch (err) {
       setError(err);
@@ -324,10 +332,10 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
     if (!selected) return;
     setBusy("test-provider");
     setError(null);
-    setNotice("");
     try {
       const resp = await testProvider(selected.id, { ...draft, credential_ref: apiKey.trim() });
-      setNotice(`${resp.message} · ${resp.latency_ms}ms`);
+      const detail = Number.isFinite(resp.latency_ms) ? `响应 ${resp.latency_ms} ms` : undefined;
+      pushToast("success", "连接成功", detail);
     } catch (err) {
       setError(err);
     } finally {
@@ -342,7 +350,8 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
     try {
       const resp = await syncProviderModels(selected.id);
       setModels((current) => ({ ...current, [selected.id]: resp.models || [] }));
-      setNotice(`模型列表已同步：新增 ${resp.created}，更新 ${resp.updated}，跳过 ${resp.skipped}`);
+      const detail = `新增 ${resp.created}，更新 ${resp.updated}，跳过 ${resp.skipped}`;
+      pushToast("success", "模型列表已同步", detail);
     } catch (err) {
       setError(err);
     } finally {
@@ -375,7 +384,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
         enabled: true
       });
       formElement.reset();
-      setNotice("模型已添加");
+      pushToast("success", "模型已添加", name);
       await load();
     } catch (err) {
       setError(err);
@@ -431,7 +440,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       });
       setEditingModel(null);
       setModelDraft(null);
-      setNotice("模型配置已保存");
+      pushToast("success", "模型配置已保存", modelDraft.name);
       await load();
     } catch (err) {
       setError(err);
@@ -456,7 +465,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       });
       const resp = await putSystemLLMConfig(next);
       setConfigs(resp.configs || next);
-      setNotice("默认模型已保存");
+      pushToast("success", "默认模型已保存", model.name || model.model);
     } catch (err) {
       setError(err);
     } finally {
@@ -485,7 +494,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       if (selectedProvider === provider.id) {
         setSelectedProvider("");
       }
-      setNotice("模型提供商已删除");
+      pushToast("success", "模型提供商已删除", provider.name);
       await load();
     } catch (err) {
       setError(err);
@@ -534,7 +543,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
         type: providerEditState.type
       });
       setProviderEditState(null);
-      setNotice("模型提供商已保存");
+      pushToast("success", "模型提供商已保存", nextName);
       await load();
     } catch (err) {
       setProviderEditState((current) => current ? { ...current, error: err } : current);
@@ -545,13 +554,13 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
 
   return (
     <section onClick={() => setContextMenu(null)}>
+      <ToastViewport messages={toasts} onDismiss={dismissToast} />
       <PageHeader
         title="模型设置"
         description="管理模型提供商、模型能力标签、Provider API 设置和系统默认模型。"
         actions={<button className="button" type="button" onClick={() => void load()}><RefreshCw size={16} /> 刷新</button>}
       />
       <ApiErrorView error={error} />
-      {notice ? <div className="notice"><CheckCircle2 size={16} /> {notice}</div> : null}
 
       <div className="settings-layout">
         <aside className="settings-nav panel">
@@ -834,7 +843,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
                       config: { ...(target.config || {}), remark: remarkState.value }
                     });
                     setRemarkState(null);
-                    setNotice("备注已保存");
+                    pushToast("success", "备注已保存", target.name);
                     await load();
                   } catch (err) {
                     setError(err);
