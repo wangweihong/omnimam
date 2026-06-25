@@ -53,18 +53,17 @@ func (pc *PlatformController) ListProviderPresets(c *gin.Context) {
 // It initializes base endpoint metadata only; credentials are not written by this endpoint.
 func (pc *PlatformController) InstallProviderPreset(c *gin.Context) {
 	req := &iapiserver.ProviderPresetInstallRequest{PresetKey: c.Param("preset_key")}
-	ret, err := pc.srv.Platforms().ProviderPresetInstall(c, req.PresetKey)
-	core.WriteResponse(c, err, ret)
+	core.Run(c, nil, func(_ any) (any, error) {
+		return pc.srv.Platforms().ProviderPresetInstall(c, req.PresetKey)
+	})
 }
 
 func (pc *PlatformController) UpdateProvider(c *gin.Context) {
 	req := &iapiserver.ProviderUpdateRequest{ID: c.Param("provider_id")}
-	if err := c.ShouldBindJSON(req); err != nil {
-		core.WriteResponse(c, err, nil)
-		return
-	}
-	ret, err := pc.srv.Platforms().ProviderUpdate(c, req)
-	core.WriteResponse(c, err, ret)
+	core.Run(c, nil, func(_ any) (any, error) {
+		return pc.srv.Platforms().ProviderUpdate(c, req)
+	})
+
 }
 
 // DeleteProvider removes one provider and clears its related models and default model bindings.
@@ -80,9 +79,6 @@ func (pc *PlatformController) DeleteProvider(c *gin.Context) {
 func (pc *PlatformController) TestProvider(c *gin.Context) {
 	req := &iapiserver.ProviderTestRequest{ID: c.Param("provider_id")}
 	core.Run(c, req, func(r *iapiserver.ProviderTestRequest) (any, error) {
-		if r.ID == "" {
-			r.ID = c.Param("provider_id")
-		}
 		return pc.srv.Platforms().ProviderTest(c, r)
 	})
 }
@@ -90,9 +86,6 @@ func (pc *PlatformController) TestProvider(c *gin.Context) {
 func (pc *PlatformController) ListProviderModels(c *gin.Context) {
 	req := &iapiserver.ProviderModelListRequest{ProviderID: c.Param("provider_id")}
 	core.Run(c, req, func(r *iapiserver.ProviderModelListRequest) (any, error) {
-		if r.ProviderID == "" {
-			r.ProviderID = c.Param("provider_id")
-		}
 		return pc.srv.Platforms().ProviderModelList(c, r)
 	})
 }
@@ -100,9 +93,6 @@ func (pc *PlatformController) ListProviderModels(c *gin.Context) {
 func (pc *PlatformController) CreateProviderModel(c *gin.Context) {
 	req := &iapiserver.ProviderModelCreateRequest{ProviderID: c.Param("provider_id")}
 	core.Run(c, req, func(r *iapiserver.ProviderModelCreateRequest) (any, error) {
-		if r.ProviderID == "" {
-			r.ProviderID = c.Param("provider_id")
-		}
 		return pc.srv.Platforms().ProviderModelCreate(c, r)
 	})
 }
@@ -112,12 +102,9 @@ func (pc *PlatformController) UpdateProviderModel(c *gin.Context) {
 		ID:         c.Param("model_id"),
 		ProviderID: c.Param("provider_id"),
 	}
-	if err := c.ShouldBindJSON(req); err != nil {
-		core.WriteResponse(c, err, nil)
-		return
-	}
-	ret, err := pc.srv.Platforms().ProviderModelUpdate(c, req)
-	core.WriteResponse(c, err, ret)
+	core.Run(c, req, func(r *iapiserver.ProviderModelUpdateRequest) (any, error) {
+		return pc.srv.Platforms().ProviderModelUpdate(c, req)
+	})
 }
 
 // SyncProviderModels imports remote OpenAI-compatible model metadata for one provider.
@@ -125,9 +112,6 @@ func (pc *PlatformController) UpdateProviderModel(c *gin.Context) {
 func (pc *PlatformController) SyncProviderModels(c *gin.Context) {
 	req := &iapiserver.ProviderModelSyncRequest{ProviderID: c.Param("provider_id")}
 	core.Run(c, req, func(r *iapiserver.ProviderModelSyncRequest) (any, error) {
-		if r.ProviderID == "" {
-			r.ProviderID = c.Param("provider_id")
-		}
 		return pc.srv.Platforms().ProviderModelSync(c, r)
 	})
 }
@@ -166,12 +150,10 @@ func (pc *PlatformController) CreateStorageBackend(c *gin.Context) {
 
 func (pc *PlatformController) UpdateStorageBackend(c *gin.Context) {
 	req := &iapiserver.StorageBackendUpdateRequest{ID: c.Param("backend_id")}
-	if err := c.ShouldBindJSON(req); err != nil {
-		core.WriteResponse(c, err, nil)
-		return
-	}
-	ret, err := pc.srv.Platforms().StorageBackendUpdate(c, req)
-	core.WriteResponse(c, err, ret)
+	core.Run(c, req, func(r *iapiserver.StorageBackendUpdateRequest) (any, error) {
+		return pc.srv.Platforms().StorageBackendUpdate(c, req)
+	})
+
 }
 
 func (pc *PlatformController) UploadAsset(c *gin.Context) {
@@ -211,15 +193,9 @@ func (pc *PlatformController) UploadAssetChunk(c *gin.Context) {
 // CompleteAssetChunkUpload merges chunks, validates the final checksum, creates the asset, and removes temp chunks.
 func (pc *PlatformController) CompleteAssetChunkUpload(c *gin.Context) {
 	req := &iapiserver.AssetChunkUploadCompleteRequest{Checksum: c.Param("checksum")}
-	if err := c.ShouldBindJSON(req); err != nil {
-		core.WriteResponse(c, err, nil)
-		return
-	}
-	if req.Checksum == "" {
-		req.Checksum = c.Param("checksum")
-	}
-	ret, err := pc.srv.Platforms().AssetChunkUploadComplete(c, req)
-	core.WriteResponse(c, err, ret)
+	core.Run(c, req, func(r *iapiserver.AssetChunkUploadCompleteRequest) (any, error) {
+		return pc.srv.Platforms().AssetChunkUploadComplete(c, req)
+	})
 }
 
 // CancelAssetChunkUpload removes a checksum-scoped temporary chunk directory.
@@ -254,12 +230,9 @@ func (pc *PlatformController) GetAsset(c *gin.Context) {
 
 func (pc *PlatformController) UpdateAsset(c *gin.Context) {
 	req := &iapiserver.AssetUpdateRequest{ID: c.Param("asset_id")}
-	if err := c.ShouldBindJSON(req); err != nil {
-		core.WriteResponse(c, err, nil)
-		return
-	}
-	ret, err := pc.srv.Platforms().AssetUpdate(c, req)
-	core.WriteResponse(c, err, ret)
+	core.Run(c, req, func(r *iapiserver.AssetUpdateRequest) (any, error) {
+		return pc.srv.Platforms().AssetUpdate(c, req)
+	})
 }
 
 // DeleteAsset marks one asset as deleted. It keeps raw content and thumbnail

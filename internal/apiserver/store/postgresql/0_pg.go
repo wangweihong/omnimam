@@ -41,16 +41,6 @@ func GetPostgresSQLFactoryOr(opts *genericoptions.PostgresSQLOptions) (store.Fac
 	return postgresqlFactory, nil
 }
 
-func CheckExists(db *gorm.DB, model interface{}, fields map[string]interface{}) bool {
-	query := db.Model(model)
-	for field, value := range fields {
-		query = query.Where(field+" = ?", value)
-	}
-
-	var count int64
-	query.Count(&count)
-	return count > 0
-}
 
 type datastore struct {
 	db *gorm.DB

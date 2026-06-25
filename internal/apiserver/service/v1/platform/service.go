@@ -240,12 +240,10 @@ func (s *platformService) ProviderCreate(
 	ctx context.Context,
 	req *iapiserver.ProviderCreateRequest,
 ) (*iapiserver.Provider, error) {
-	if err := s.ensureProviderNameUnique(ctx, req.Name, ""); err != nil {
-		return nil, err
-	}
+
 	provider := &iapiserver.Provider{
 		Type:          req.Type,
-		Enabled:       general.FallbackIfNil(req.Enabled, true),
+		Enabled:       false,
 		BaseURL:       req.BaseURL,
 		AuthType:      req.AuthType,
 		CredentialRef: req.CredentialRef,
@@ -256,9 +254,6 @@ func (s *platformService) ProviderCreate(
 	applyProviderPresetDefaults(provider)
 	if provider.AuthType == "" && provider.CredentialRef != "" {
 		provider.AuthType = iapiserver.ProviderAuthTypeAPIKey
-	}
-	if provider.Type == iapiserver.ProviderTypeDeepSeek && provider.BaseURL == "" {
-		provider.BaseURL = "https://api.deepseek.com"
 	}
 	created, err := s.store.Providers().Add(ctx, provider)
 	if err != nil {
@@ -277,9 +272,9 @@ func (s *platformService) ProviderUpdate(
 	}
 
 	provider.Name = general.FallbackIfNil(req.Name, provider.Name)
-	if err := s.ensureProviderNameUnique(ctx, provider.Name, provider.ID); err != nil {
-		return nil, err
-	}
+	// if err := s.ensureProviderNameUnique(ctx, provider.Name, provider.ID); err != nil {
+	// 	return nil, errors.WithStack(err)
+	// }
 	provider.Type = general.FallbackIfNil(req.Type, provider.Type)
 	provider.Enabled = general.FallbackIfNil(req.Enabled, provider.Enabled)
 	provider.BaseURL = general.FallbackIfNil(req.BaseURL, provider.BaseURL)
@@ -552,7 +547,7 @@ func providerPresets() []*iapiserver.ProviderPreset {
 		{
 			Key:               "deepseek",
 			Name:              "DeepSeek",
-			Type:              iapiserver.ProviderTypeDeepSeek,
+			Type:              "",
 			BaseURL:           "https://api.deepseek.com",
 			AuthType:          iapiserver.ProviderAuthTypeAPIKey,
 			Icon:              "d",
@@ -712,26 +707,6 @@ func sanitizeProvider(provider *iapiserver.Provider) *iapiserver.Provider {
 	return &ret
 }
 
-func (s *platformService) ensureProviderNameUnique(ctx context.Context, name string, exceptID string) error {
-	normalized := strings.TrimSpace(name)
-	if normalized == "" {
-		return errors.NewStatusF(code.ErrValidation, "provider name is required")
-	}
-	existing, _, err := s.store.Providers().List(ctx, &iapiserver.ProviderListRequest{})
-	if err != nil {
-		return errors.WithStack(err)
-	}
-	for _, item := range existing {
-		if item.ID == exceptID {
-			continue
-		}
-		if strings.EqualFold(strings.TrimSpace(item.Name), normalized) {
-			return errors.NewStatusF(code.ErrValidation, "provider name %q already exists", normalized)
-		}
-	}
-	return nil
-}
-
 func (s *platformService) ensureProviderModelUnique(
 	ctx context.Context,
 	providerID, name, modelName, exceptID string,
@@ -784,7 +759,7 @@ func (s *platformService) providerWithOverrides(
 
 func fetchOpenAICompatibleModels(ctx context.Context, provider *iapiserver.Provider) ([]string, error) {
 	switch provider.Type {
-	case iapiserver.ProviderTypeDeepSeek, iapiserver.ProviderTypeOpenAICompatible:
+	case iapiserver.ProviderTypeOpenAICompatible:
 	default:
 		return nil, errors.NewStatusF(code.ErrProviderUnsupported, "provider type %s is unsupported", provider.Type)
 	}

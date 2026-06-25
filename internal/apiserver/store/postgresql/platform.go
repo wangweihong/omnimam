@@ -48,26 +48,36 @@ func (s *providerStore) Get(ctx context.Context, id string) (*iapiserver.Provide
 }
 
 func (s *providerStore) Add(ctx context.Context, data *iapiserver.Provider) (*iapiserver.Provider, error) {
-	enabled := data.Enabled
-	db := s.ds.db.WithContext(ctx)
-	if err := db.Create(data).Error; err != nil {
-		return nil, errors.WithStack(err)
-	}
-	if !enabled {
-		// GORM applies the `default:true` tag to false bool zero values on create.
-		if err := db.Model(data).UpdateColumn("enabled", false).Error; err != nil {
-			return nil, errors.WithStack(err)
+	err := s.ds.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if CheckExists(tx, &iapiserver.Provider{}, map[string]any{
+			"name": data.Name,
+		}) {
+			return errors.Errorf("exists  name with '%v'", data.Name)
 		}
-		data.Enabled = false
-	}
-	return data, nil
+
+		if err := tx.Create(data).Error; err != nil {
+			return errors.WithStack(err)
+		}
+		return nil
+	})
+
+	return data, errors.WithStack(err)
 }
 
 func (s *providerStore) Update(ctx context.Context, data *iapiserver.Provider) (*iapiserver.Provider, error) {
-	if err := s.ds.db.WithContext(ctx).Save(data).Error; err != nil {
-		return nil, errors.WithStack(err)
-	}
-	return data, nil
+	err := s.ds.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		d := &iapiserver.Provider{}
+		if GetByName(tx, d, data.Name) && d.ID != data.ID {
+			return errors.Errorf("exists provider name '%v' with id '%v'", data.Name, data.ID)
+		}
+
+		if err := tx.Save(data).Error; err != nil {
+			return errors.WithStack(err)
+		}
+		return nil
+	})
+
+	return data, errors.WithStack(err)
 }
 
 func (s *providerStore) Delete(ctx context.Context, id string) error {

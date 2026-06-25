@@ -45,6 +45,11 @@ func DecodeParameter(c *gin.Context, obj any) error {
 		}
 	}
 
+	// 解析后需要处理一些空值默认值的情况
+	if d, ok := obj.(imachinery.DefaultSetter); ok {
+		d.SetDefaults()
+	}
+
 	// 自定义检测
 	if d, ok := obj.(validation.Validator); ok {
 		if err := d.Validate(); err != nil {

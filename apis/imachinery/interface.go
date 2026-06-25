@@ -19,3 +19,8 @@ type Decoder interface {
 type PostRun interface {
 	Transform() any
 }
+
+// 结构体设置一些默认值
+type DefaultSetter interface {
+	SetDefaults()
+}

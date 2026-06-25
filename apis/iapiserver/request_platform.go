@@ -157,6 +157,11 @@ type (
 	}
 )
 
+func (r *ProviderUpdateRequest) Validate() error {
+
+	return nil
+}
+
 type (
 	SystemLLMConfigListResponse struct {
 		Configs []*SystemLLMConfig `json:"configs"`

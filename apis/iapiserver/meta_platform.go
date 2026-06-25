@@ -10,7 +10,6 @@ import (
 )
 
 const (
-	ProviderTypeDeepSeek         = "deepseek"
 	ProviderTypeOpenAICompatible = "openai-compatible"
 
 	ProviderAuthTypeAPIKey = "api_key"
@@ -82,7 +81,7 @@ const (
 type Provider struct {
 	imachinery.ObjectMeta
 	Type          string         `json:"type"                     gorm:"column:type;type:varchar(64);not null;index"`
-	Enabled       bool           `json:"enabled"                  gorm:"column:enabled;type:boolean;not null;default:true"`
+	Enabled       bool           `json:"enabled"                  gorm:"column:enabled;type:boolean;not null"`
 	BaseURL       string         `json:"base_url"                 gorm:"column:base_url;type:varchar(512)"`
 	AuthType      string         `json:"auth_type"                gorm:"column:auth_type;type:varchar(64)"`
 	CredentialRef string         `json:"credential_ref,omitempty" gorm:"column:credential_ref;type:varchar(512)"`
