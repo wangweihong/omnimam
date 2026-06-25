@@ -61,6 +61,12 @@ func (s *providerStore) Update(ctx context.Context, data *iapiserver.Provider) (
 	return data, nil
 }
 
+func (s *providerStore) Delete(ctx context.Context, id string) error {
+	return errors.WithStack(
+		s.ds.db.WithContext(ctx).Where("id = ?", id).Delete(&iapiserver.Provider{}).Error,
+	)
+}
+
 type providerModelStore struct{ ds *datastore }
 
 func newProviderModel(ds *datastore) *providerModelStore { return &providerModelStore{ds: ds} }
@@ -116,6 +122,12 @@ func (s *providerModelStore) Update(
 		return nil, errors.WithStack(err)
 	}
 	return data, nil
+}
+
+func (s *providerModelStore) DeleteByProviderID(ctx context.Context, providerID string) error {
+	return errors.WithStack(
+		s.ds.db.WithContext(ctx).Where("provider_id = ?", providerID).Delete(&iapiserver.ProviderModel{}).Error,
+	)
 }
 
 type providerCapabilityStore struct{ ds *datastore }
@@ -180,6 +192,12 @@ func (s *systemLLMConfigStore) Upsert(
 		return nil, errors.WithStack(err)
 	}
 	return data, nil
+}
+
+func (s *systemLLMConfigStore) DeleteByProviderID(ctx context.Context, providerID string) error {
+	return errors.WithStack(
+		s.ds.db.WithContext(ctx).Where("provider_id = ?", providerID).Delete(&iapiserver.SystemLLMConfig{}).Error,
+	)
 }
 
 type storageBackendStore struct{ ds *datastore }

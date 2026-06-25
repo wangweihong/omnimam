@@ -67,6 +67,14 @@ func (pc *PlatformController) UpdateProvider(c *gin.Context) {
 	core.WriteResponse(c, err, ret)
 }
 
+// DeleteProvider removes one provider and clears its related models and default model bindings.
+// It returns sanitized provider metadata only and never returns credentials.
+func (pc *PlatformController) DeleteProvider(c *gin.Context) {
+	core.Run(c, nil, func(_ any) (any, error) {
+		return pc.srv.Platforms().ProviderDelete(c, c.Param("provider_id"))
+	})
+}
+
 // TestProvider checks a provider endpoint with optional unsaved API settings.
 // It returns only connection metadata and never persists credentials or invokes async tasks.
 func (pc *PlatformController) TestProvider(c *gin.Context) {

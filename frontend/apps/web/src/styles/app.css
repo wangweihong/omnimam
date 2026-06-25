@@ -325,6 +325,12 @@ select {
   border-color: var(--accent);
 }
 
+.button.danger {
+  background: #b42318;
+  color: #fff;
+  border-color: #b42318;
+}
+
 .button.disabled,
 .button:disabled {
   opacity: 0.5;
@@ -1217,6 +1223,32 @@ select {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 14px;
+}
+
+.confirm-dialog {
+  max-width: 480px;
+}
+
+.confirm-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.confirm-dialog-icon {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--panel-soft);
+  color: var(--accent);
+}
+
+.confirm-dialog-icon.danger {
+  background: rgba(180, 35, 24, 0.12);
+  color: #b42318;
 }
 
 .provider-detail-head,

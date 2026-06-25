@@ -153,6 +153,8 @@ type ProviderStore interface {
 	Get(ctx context.Context, id string) (*iapiserver.Provider, error)
 	Add(ctx context.Context, data *iapiserver.Provider) (*iapiserver.Provider, error)
 	Update(ctx context.Context, data *iapiserver.Provider) (*iapiserver.Provider, error)
+	// Delete removes one provider record by id.
+	Delete(ctx context.Context, id string) error
 }
 
 type ProviderModelStore interface {
@@ -160,6 +162,8 @@ type ProviderModelStore interface {
 	Get(ctx context.Context, id string) (*iapiserver.ProviderModel, error)
 	Add(ctx context.Context, data *iapiserver.ProviderModel) (*iapiserver.ProviderModel, error)
 	Update(ctx context.Context, data *iapiserver.ProviderModel) (*iapiserver.ProviderModel, error)
+	// DeleteByProviderID removes all models under one provider.
+	DeleteByProviderID(ctx context.Context, providerID string) error
 }
 
 type ProviderCapabilityStore interface {
@@ -170,6 +174,8 @@ type ProviderCapabilityStore interface {
 type SystemLLMConfigStore interface {
 	List(ctx context.Context) ([]*iapiserver.SystemLLMConfig, error)
 	Upsert(ctx context.Context, data *iapiserver.SystemLLMConfig) (*iapiserver.SystemLLMConfig, error)
+	// DeleteByProviderID removes all default model bindings under one provider.
+	DeleteByProviderID(ctx context.Context, providerID string) error
 }
 
 type StorageBackendStore interface {

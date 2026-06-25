@@ -59,6 +59,7 @@ func installPlatformApis(rg *gin.RouterGroup, storeIns store.Factory) {
 		providers.GET("", platformController.ListProviders)
 		providers.POST("", platformController.CreateProvider)
 		providers.PATCH("/:provider_id", platformController.UpdateProvider)
+		providers.DELETE("/:provider_id", platformController.DeleteProvider)
 		providers.POST("/:provider_id/test", platformController.TestProvider)
 		providers.GET("/:provider_id/models", platformController.ListProviderModels)
 		providers.POST("/:provider_id/models", platformController.CreateProviderModel)

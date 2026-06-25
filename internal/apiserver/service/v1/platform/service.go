@@ -40,6 +40,8 @@ type PlatformSrv interface {
 	ProviderList(ctx context.Context, req *iapiserver.ProviderListRequest) (*iapiserver.ProviderListResponse, error)
 	ProviderCreate(ctx context.Context, req *iapiserver.ProviderCreateRequest) (*iapiserver.Provider, error)
 	ProviderUpdate(ctx context.Context, req *iapiserver.ProviderUpdateRequest) (*iapiserver.Provider, error)
+	// ProviderDelete removes one provider together with its models and related default model bindings.
+	ProviderDelete(ctx context.Context, id string) (*iapiserver.Provider, error)
 	// ProviderPresetList returns built-in model service presets and their dynamic API setting schema.
 	ProviderPresetList(ctx context.Context) (*iapiserver.ProviderPresetListResponse, error)
 	// ProviderPresetInstall creates or updates one provider from a preset without writing credentials.
@@ -238,6 +240,9 @@ func (s *platformService) ProviderCreate(
 	ctx context.Context,
 	req *iapiserver.ProviderCreateRequest,
 ) (*iapiserver.Provider, error) {
+	if err := s.ensureProviderNameUnique(ctx, req.Name, ""); err != nil {
+		return nil, err
+	}
 	provider := &iapiserver.Provider{
 		Type:          req.Type,
 		Enabled:       general.FallbackIfNil(req.Enabled, true),
@@ -272,6 +277,9 @@ func (s *platformService) ProviderUpdate(
 	}
 
 	provider.Name = general.FallbackIfNil(req.Name, provider.Name)
+	if err := s.ensureProviderNameUnique(ctx, provider.Name, provider.ID); err != nil {
+		return nil, err
+	}
 	provider.Type = general.FallbackIfNil(req.Type, provider.Type)
 	provider.Enabled = general.FallbackIfNil(req.Enabled, provider.Enabled)
 	provider.BaseURL = general.FallbackIfNil(req.BaseURL, provider.BaseURL)
@@ -285,6 +293,23 @@ func (s *platformService) ProviderUpdate(
 		return nil, errors.WithStack(err)
 	}
 	return sanitizeProvider(updated), nil
+}
+
+func (s *platformService) ProviderDelete(ctx context.Context, id string) (*iapiserver.Provider, error) {
+	provider, err := s.store.Providers().Get(ctx, id)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	if err := s.store.SystemLLMConfigs().DeleteByProviderID(ctx, id); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	if err := s.store.ProviderModels().DeleteByProviderID(ctx, id); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	if err := s.store.Providers().Delete(ctx, id); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return sanitizeProvider(provider), nil
 }
 
 func (s *platformService) ProviderPresetList(ctx context.Context) (*iapiserver.ProviderPresetListResponse, error) {
@@ -366,6 +391,9 @@ func (s *platformService) ProviderModelCreate(
 	ctx context.Context,
 	req *iapiserver.ProviderModelCreateRequest,
 ) (*iapiserver.ProviderModel, error) {
+	if err := s.ensureProviderModelUnique(ctx, req.ProviderID, req.Name, req.Model, ""); err != nil {
+		return nil, err
+	}
 	enabled := true
 	if req.Enabled != nil {
 		enabled = *req.Enabled
@@ -393,8 +421,13 @@ func (s *platformService) ProviderModelUpdate(
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	model.Name = general.FallbackIfNil(req.Name, model.Name)
-	model.Model = general.FallbackIfNil(req.Model, model.Model)
+	nextName := general.FallbackIfNil(req.Name, model.Name)
+	nextModel := general.FallbackIfNil(req.Model, model.Model)
+	if err := s.ensureProviderModelUnique(ctx, model.ProviderID, nextName, nextModel, model.ID); err != nil {
+		return nil, err
+	}
+	model.Name = nextName
+	model.Model = nextModel
 	model.EndpointType = general.FallbackIfNil(req.EndpointType, model.EndpointType)
 	model.GroupName = general.FallbackIfNil(req.GroupName, model.GroupName)
 	model.Capabilities = general.FallbackIfNil(req.Capabilities, model.Capabilities)
@@ -649,7 +682,8 @@ func applyPresetModelDefaults(provider *iapiserver.Provider, model *iapiserver.P
 			changed = true
 		}
 		for _, modelType := range rule.ModelTypes {
-			if sets.NewString(model.ModelTypes...).Has(modelType) {
+			// A previous reversed membership check silently dropped inferred model types from preset rules.
+			if !sets.NewString(model.ModelTypes...).Has(modelType) {
 				model.ModelTypes = append(model.ModelTypes, modelType)
 				changed = true
 			}
@@ -676,6 +710,56 @@ func sanitizeProvider(provider *iapiserver.Provider) *iapiserver.Provider {
 		ret.CredentialRef = "configured"
 	}
 	return &ret
+}
+
+func (s *platformService) ensureProviderNameUnique(ctx context.Context, name string, exceptID string) error {
+	normalized := strings.TrimSpace(name)
+	if normalized == "" {
+		return errors.NewStatusF(code.ErrValidation, "provider name is required")
+	}
+	existing, _, err := s.store.Providers().List(ctx, &iapiserver.ProviderListRequest{})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	for _, item := range existing {
+		if item.ID == exceptID {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(item.Name), normalized) {
+			return errors.NewStatusF(code.ErrValidation, "provider name %q already exists", normalized)
+		}
+	}
+	return nil
+}
+
+func (s *platformService) ensureProviderModelUnique(
+	ctx context.Context,
+	providerID, name, modelName, exceptID string,
+) error {
+	normalizedName := strings.TrimSpace(name)
+	normalizedModel := strings.TrimSpace(modelName)
+	if normalizedName == "" {
+		return errors.NewStatusF(code.ErrValidation, "provider model name is required")
+	}
+	if normalizedModel == "" {
+		return errors.NewStatusF(code.ErrValidation, "provider model is required")
+	}
+	models, _, err := s.store.ProviderModels().List(ctx, &iapiserver.ProviderModelListRequest{ProviderID: providerID})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	for _, item := range models {
+		if item.ID == exceptID {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(item.Name), normalizedName) {
+			return errors.NewStatusF(code.ErrValidation, "provider model name %q already exists", normalizedName)
+		}
+		if strings.EqualFold(strings.TrimSpace(item.Model), normalizedModel) {
+			return errors.NewStatusF(code.ErrValidation, "provider model %q already exists", normalizedModel)
+		}
+	}
+	return nil
 }
 
 func (s *platformService) providerWithOverrides(

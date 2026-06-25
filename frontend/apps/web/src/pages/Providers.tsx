@@ -43,8 +43,9 @@ import {
   X,
   Zap
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ApiErrorView } from "../components/ApiErrorView";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { PageHeader } from "../components/PageHeader";
 import { StatusBadge } from "../components/StatusBadge";
 
@@ -119,6 +120,11 @@ type ProviderContextMenuState = {
   y: number;
 };
 
+type ProviderRemarkState = {
+  provider: Provider;
+  value: string;
+};
+
 function parseCapabilities(value: FormDataEntryValue | string | null) {
   return String(value || "")
     .split(/[,，\s]+/)
@@ -167,7 +173,10 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState<unknown>(null);
   const [contextMenu, setContextMenu] = useState<ProviderContextMenuState | null>(null);
-  const [remarkProvider, setRemarkProvider] = useState<Provider | null>(null);
+  const [remarkState, setRemarkState] = useState<ProviderRemarkState | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Provider | null>(null);
+  const [pendingEditProviderID, setPendingEditProviderID] = useState("");
+  const providerNameInputRef = useRef<HTMLInputElement | null>(null);
 
   const selected = useMemo(() => providers.find((provider) => provider.id === selectedProvider), [providers, selectedProvider]);
   const providerModels = models[selectedProvider] || [];
@@ -220,19 +229,50 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
     setNotice("");
   }, [selected]);
 
+  useEffect(() => {
+    if (!selected || pendingEditProviderID !== selected.id) return;
+    providerNameInputRef.current?.focus();
+    providerNameInputRef.current?.select();
+    setPendingEditProviderID("");
+  }, [pendingEditProviderID, selected]);
+
   const filteredProviders = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     if (!keyword) return providers;
     return providers.filter((provider) => `${provider.name} ${provider.type} ${provider.base_url}`.toLowerCase().includes(keyword));
   }, [providers, search]);
 
+  function providerNameExists(name: string, exceptID = "") {
+    const normalized = name.trim().toLowerCase();
+    return providers.some((provider) => provider.id !== exceptID && provider.name.trim().toLowerCase() === normalized);
+  }
+
+  function findModelDuplicateMessage(providerID: string, name: string, model: string, exceptID = "") {
+    const normalizedName = name.trim().toLowerCase();
+    const normalizedModel = model.trim().toLowerCase();
+    const duplicates = (models[providerID] || []).filter((item) => item.id !== exceptID);
+    if (duplicates.some((item) => item.name.trim().toLowerCase() === normalizedName)) {
+      return `模型名称「${name.trim()}」已存在`;
+    }
+    if (duplicates.some((item) => item.model.trim().toLowerCase() === normalizedModel)) {
+      return `模型标识「${model.trim()}」已存在`;
+    }
+    return "";
+  }
+
   async function addProvider(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const providerKind = String(form.get("provider_kind") || providerAddOptions[0].key);
     const option = providerAddOptions.find((item) => item.key === providerKind) || providerAddOptions[0];
     const name = String(form.get("name") || "").trim() || option.label;
+    if (providerNameExists(name)) {
+      setError(new Error(`模型提供商名称「${name}」已存在`));
+      return;
+    }
     setBusy("add-provider");
+    setError(null);
     try {
       await createProvider({
         name,
@@ -243,8 +283,9 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
         credential_ref: form.get("credential_ref"),
         config: { provider_kind: providerKind }
       });
-      event.currentTarget.reset();
+      formElement.reset();
       setAddProviderOpen(false);
+      setNotice("模型提供商已添加");
       await load();
     } catch (err) {
       setError(err);
@@ -255,6 +296,11 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
 
   async function saveProvider() {
     if (!selected) return;
+    const nextName = draft.name.trim();
+    if (providerNameExists(nextName, selected.id)) {
+      setError(new Error(`模型提供商名称「${nextName}」已存在`));
+      return;
+    }
     setBusy("save-provider");
     setError(null);
     try {
@@ -263,7 +309,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
         input.credential_ref = apiKey.trim();
       }
       await updateProvider(selected.id, input);
-      setNotice("模型服务已保存");
+      setNotice("模型提供商已保存");
       await load();
     } catch (err) {
       setError(err);
@@ -305,19 +351,29 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
   async function addModel(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedProvider) return;
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const name = String(form.get("name") || "").trim();
+    const model = String(form.get("model") || "").trim();
+    const duplicateMessage = findModelDuplicateMessage(selectedProvider, name, model);
+    if (duplicateMessage) {
+      setError(new Error(duplicateMessage));
+      return;
+    }
     setBusy("add-model");
+    setError(null);
     try {
       await createProviderModel(selectedProvider, {
-        name: form.get("name"),
-        model: form.get("model"),
+        name,
+        model,
         endpoint_type: "chat",
         group_name: selected?.name || "",
         capabilities: parseCapabilities(form.get("capabilities")),
         model_types: [],
         enabled: true
       });
-      event.currentTarget.reset();
+      formElement.reset();
+      setNotice("模型已添加");
       await load();
     } catch (err) {
       setError(err);
@@ -345,6 +401,16 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
 
   async function saveModelEditor() {
     if (!editingModel || !modelDraft) return;
+    const duplicateMessage = findModelDuplicateMessage(
+      editingModel.provider_id,
+      modelDraft.name,
+      editingModel.model,
+      editingModel.id
+    );
+    if (duplicateMessage) {
+      setError(new Error(duplicateMessage));
+      return;
+    }
     setBusy("save-model");
     setError(null);
     try {
@@ -407,15 +473,17 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
   }
 
   async function deleteProviderAction(provider: Provider) {
-    if (!window.confirm(`确定删除「${provider.name}」吗？此操作不可撤销。`)) return;
     setBusy("delete-provider");
     setError(null);
     try {
       await deleteProvider(provider.id);
       setContextMenu(null);
+      setDeleteTarget(null);
+      setRemarkState((current) => (current?.provider.id === provider.id ? null : current));
       if (selectedProvider === provider.id) {
         setSelectedProvider("");
       }
+      setNotice("模型提供商已删除");
       await load();
     } catch (err) {
       setError(err);
@@ -426,19 +494,29 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
 
   function openRemarkDialog(provider: Provider) {
     setContextMenu(null);
-    setRemarkProvider(provider);
+    setRemarkState({
+      provider,
+      value: String((provider.config as Record<string, unknown>)?.remark || "")
+    });
   }
 
   function openEditProvider(provider: Provider) {
     setContextMenu(null);
+    setSection("services");
     setSelectedProvider(provider.id);
+    setPendingEditProviderID(provider.id);
+  }
+
+  function openDeleteProviderDialog(provider: Provider) {
+    setContextMenu(null);
+    setDeleteTarget(provider);
   }
 
   return (
     <section onClick={() => setContextMenu(null)}>
       <PageHeader
         title="模型设置"
-        description="管理模型服务、模型能力标签、Provider API 设置和系统默认模型。"
+        description="管理模型提供商、模型能力标签、Provider API 设置和系统默认模型。"
         actions={<button className="button" type="button" onClick={() => void load()}><RefreshCw size={16} /> 刷新</button>}
       />
       <ApiErrorView error={error} />
@@ -447,7 +525,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       <div className="settings-layout">
         <aside className="settings-nav panel">
           <button className={section === "services" ? "selected" : ""} type="button" onClick={() => setSection("services")}>
-            <Bot size={18} /> 模型服务
+            <Bot size={18} /> 模型提供商
           </button>
           <button className={section === "defaults" ? "selected" : ""} type="button" onClick={() => setSection("defaults")}>
             <Box size={18} /> 默认模型
@@ -459,10 +537,10 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
             <div className="panel provider-list-panel">
               <div className="provider-search">
                 <Search size={16} />
-                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索模型服务..." />
+                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索模型提供商..." />
                 <Filter size={16} />
               </div>
-              <div className="provider-section-title">已配置服务</div>
+              <div className="provider-section-title">已配置提供商</div>
               <div className="list">
                 {/* 每个云提供商渲染成一个button */}
                 {filteredProviders.map((provider) => (
@@ -483,14 +561,14 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
               </div>
               {canWrite ? (
                 <button className="button primary add-provider-button" type="button" onClick={() => setAddProviderOpen(true)}>
-                  <Plus size={16} /> 添加
+                  <Plus size={16} /> 添加提供商
                 </button>
               ) : null}
               {contextMenu ? (
                 <div className="provider-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}>
                   <button type="button" onClick={() => openEditProvider(contextMenu.provider)}><Pencil size={16} /> 编辑</button>
                   <button type="button" onClick={() => openRemarkDialog(contextMenu.provider)}><StickyNote size={16} /> 备注</button>
-                  <button type="button" onClick={() => void deleteProviderAction(contextMenu.provider)} disabled={!canWrite || busy === "delete-provider"}><Trash2 size={16} /> 删除</button>
+                  <button type="button" onClick={() => openDeleteProviderDialog(contextMenu.provider)} disabled={!canWrite || busy === "delete-provider"}><Trash2 size={16} /> 删除</button>
                 </div>
               ) : null}
             </div>
@@ -516,7 +594,12 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
                   <div className="settings-form">
                     <label>
                       <span>名称</span>
-                      <input value={draft.name} disabled={!canWrite} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} />
+                      <input
+                        ref={providerNameInputRef}
+                        value={draft.name}
+                        disabled={!canWrite}
+                        onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+                      />
                     </label>
                     <label>
                       <span>类型</span>
@@ -606,7 +689,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
                   ) : null}
                 </>
               ) : (
-                <div className="empty-state">请选择或添加一个模型服务。</div>
+                <div className="empty-state">请选择或添加一个模型提供商。</div>
               )}
             </div>
           </>
@@ -682,39 +765,33 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
           onChange={setModelDraft}
         />
       ) : null}
-      {remarkProvider ? (
-        <div className="provider-remark-backdrop" onClick={() => setRemarkProvider(null)}>
+      {remarkState ? (
+        <div className="provider-remark-backdrop" onClick={() => setRemarkState(null)}>
           <div className="provider-remark-dialog" onClick={(event) => event.stopPropagation()}>
-            <h3>备注 - {remarkProvider.name}</h3>
+            <h3>备注 - {remarkState.provider.name}</h3>
             <textarea
               className="provider-remark-textarea"
               placeholder="输入备注内容..."
-              defaultValue={String((remarkProvider.config as Record<string, unknown>)?.remark || "")}
-              onChange={(event) => {
-                const value = event.target.value;
-                setProviders((current) =>
-                  current.map((p) =>
-                    p.id === remarkProvider.id
-                      ? { ...p, config: { ...(p.config || {}), remark: value } }
-                      : p
-                  )
-                );
-              }}
+              value={remarkState.value}
+              onChange={(event) => setRemarkState((current) => (current ? { ...current, value: event.target.value } : current))}
             />
             <div className="provider-remark-actions">
-              <button className="button" type="button" onClick={() => setRemarkProvider(null)}>取消</button>
+              <button className="button" type="button" onClick={() => setRemarkState(null)}>取消</button>
               <button
                 className="button primary"
                 type="button"
                 disabled={!canWrite || busy === "save-provider"}
                 onClick={async () => {
-                  const target = providers.find((p) => p.id === remarkProvider.id);
+                  if (!remarkState) return;
+                  const target = providers.find((p) => p.id === remarkState.provider.id);
                   if (!target) return;
                   setBusy("save-provider");
                   setError(null);
                   try {
-                    await updateProvider(target.id, { config: target.config });
-                    setRemarkProvider(null);
+                    await updateProvider(target.id, {
+                      config: { ...(target.config || {}), remark: remarkState.value }
+                    });
+                    setRemarkState(null);
                     setNotice("备注已保存");
                     await load();
                   } catch (err) {
@@ -729,6 +806,21 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
             </div>
           </div>
         </div>
+      ) : null}
+      {deleteTarget ? (
+        <ConfirmDialog
+          title={`删除模型提供商「${deleteTarget.name}」`}
+          description="删除后会同时清理该提供商下的模型和相关默认模型绑定，此操作不可撤销。"
+          confirmLabel="确认删除"
+          busy={busy === "delete-provider"}
+          tone="danger"
+          onCancel={() => {
+            if (busy !== "delete-provider") {
+              setDeleteTarget(null);
+            }
+          }}
+          onConfirm={() => void deleteProviderAction(deleteTarget)}
+        />
       ) : null}
     </section>
   );
@@ -776,12 +868,12 @@ function APISettingsModal({
         <div className="dialog-head">
           <div>
             <h3>API 设置</h3>
-            <small>不同模型服务通过 schema 渲染专属 API 开关。</small>
+            <small>不同模型提供商通过 schema 渲染专属 API 开关。</small>
           </div>
           <button className="icon-button button" type="button" onClick={onClose}><X size={16} /></button>
         </div>
         <div className="settings-form">
-          {schema.length === 0 ? <div className="empty-state">当前服务没有额外 API 设置。</div> : null}
+          {schema.length === 0 ? <div className="empty-state">当前提供商没有额外 API 设置。</div> : null}
           {schema.map((setting) => (
             <label className="setting-toggle-row" key={setting.key}>
               <span>
@@ -829,7 +921,7 @@ function AddProviderModal({
       <form className="settings-dialog provider-add-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()} onSubmit={onSubmit}>
         <div className="dialog-head">
           <div>
-            <h3>添加提供商</h3>
+            <h3>添加模型提供商</h3>
             <small>添加后可继续配置 API 地址、密钥和模型列表。</small>
           </div>
           <button className="icon-button button" type="button" onClick={onClose}><X size={16} /></button>
@@ -837,7 +929,7 @@ function AddProviderModal({
         <div className="provider-add-avatar">P</div>
         <div className="settings-form">
           <label>
-            <span>提供商名称</span>
+            <span>模型提供商名称</span>
             <input name="name" placeholder="例如 OpenAI" />
           </label>
           <label>
