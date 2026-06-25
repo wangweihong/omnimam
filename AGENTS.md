@@ -79,6 +79,8 @@ import . "github.com/smartystreets/goconvey/convey"
 - Agent 不使用 `npm run build` 作为正式 frontend 验证命令。
 - `static/` 只能保留为参考页面、交互原型或历史能力清单；不能在 `static/` 中继续扩展正式产品功能。
 - 新增 frontend 功能时，需要先读取 `/api/v1/me`，根据 permission 和 `FeatureFlag` 动态显示菜单、按钮、provider、task entry。
+- 弹窗中的表单提交、异步请求、校验或保存失败，错误信息必须在弹窗内展示，不能只用全局 toast 或跳出弹窗上下文。
+- 弹窗关闭必须由用户明确点击关闭按钮、`x` 号或取消按钮触发，禁止点击遮罩层、页面空白处或其他非弹窗区域直接关闭。
 
 ## Error Code 与 HTTP Status 规则
 
