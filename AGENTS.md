@@ -109,6 +109,20 @@ import . "github.com/smartystreets/goconvey/convey"
 - Public API 注释需要说明 endpoint 是否返回原始 asset content、只返回 metadata/thumbnail，或是否创建 async `Task`。
 - Internal helper function 不要求长注释，但 exported interface method 和 controller endpoint 必须有清晰功能说明。
 
+## 代码逻辑注释规则 Code Logic Comment Rules
+
+- 本节适用于 frontend 和 backend 的实现逻辑注释，不替代 `接口注释要求 Interface Comment Requirements` 中对 exported interface method、controller endpoint 和 public API 的注释要求。
+- 仅在复杂业务逻辑、非显而易见的算法或实现、跨模块或跨层调用的关键数据流转、容易误解或踩坑的实现、使用非常规或非直观的库或接口行为时，才允许并应优先考虑添加注释。
+- `Magic Number`、复杂正则、锁或并发控制、类型强制转换、外部依赖降级策略属于必须重点检查的注释触发场景；遇到这些实现时，默认先判断是否需要通过注释说明设计意图、约束来源或风险。
+- 修复 bug 时，允许并要求添加注释解释修改原因，重点说明为什么这样改、在防什么回归、涉及什么兼容性或历史问题；禁止只复述代码字面行为。
+- 禁止解释关键字或基础语法，例如 `for`、`if`、`switch`、`await`、`try/catch`。
+- 禁止复述代码字面意思，禁止变量名或函数名字面解释型注释，禁止为简单 getter/setter、结构体字段、明显语义代码添加说明。
+- 注释必须优先解释设计意图、业务原因、约束来源、兼容性背景，而不是逐行翻译代码。
+- 避免冗余注释堆叠，不要为每一行代码添加注释；如果代码本身已经足够自解释，则不允许额外添加注释。
+- 单行注释必须放在代码上方，而不是写在行尾；行尾注释只允许用于极短的对齐型注记，不允许承载逻辑说明或修改原因。
+- 每 50 行代码平均不超过 3 条注释，复杂算法或复杂控制流可以例外，但整体目标必须保持注释密度低、信息密度高。
+- “如果未来接手这段代码的同事看到注释后依然要反复读代码，那这个注释就是失败的；如果注释能让他跳过读代码直接理解意图，那它就是必要的。”
+
 ## AI 工程协作增强规则 AI Collaboration Rules
 
 ### 认知盲区提醒 Cognitive Blind Spot Checks
