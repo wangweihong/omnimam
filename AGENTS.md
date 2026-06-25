@@ -91,6 +91,15 @@ import . "github.com/smartystreets/goconvey/convey"
 - 如果 `codegen` 不存在，先在 `Makefile` 和 `scripts/make-rules/` 中查找安装规则；当前项目优先使用 `make tools` 或对应 `install.codegen` 规则。
 - Provider、Storage、external API gateway、local model service 等外部调用失败时，不能统一吞成 `500`；需要按失败类型映射为合适的 error code 和 HTTP status，例如认证失败、权限不足、资源不存在、请求超时、上游不可用、响应解析失败。
 
+## Backend API Controller 规则
+
+- Go backend API request struct，例如 `ProviderModelCreateRequest`，字段参数校验必须优先通过 `binding` tag 触发 `pkg/validate` 或现有 `pkg/validator` 接入的校验能力。
+- 当校验需要跨字段、条件判断，或无法用 `binding` tag 清晰表达时，使用 `github.com/wangweihong/gotoolbox/pkg/validation.Validator` 风格实现 `Validate()`。
+- 仅当需要在绑定后做参数归一化、派生字段填充、列表拆分等 post-bind 处理时，才实现 `imachinery.PostBinder`；普通字段有效性校验不得优先放进 `PostBind()`。
+- 无外部依赖、无 database 依赖、无特殊业务依赖的字段参数有效性检测，应尽可能在 Controller 层通过 `core.Run` / `core.DecodeParameter` 完成。
+- 对象不存在时必须返回明确的 business error code 和 message，例如 `provider model not found`；不能只通过裸 `404` HTTP status 表达对象不存在。
+- 接口响应应尽可能统一通过 `core.WriteResponse` 返回；文件下载、流式响应、SSE、redirect 等特殊响应可以例外，但错误返回仍需保持一致。
+
 ## 修改后验证规则 Verification Rules
 - 每次修改 frontend code、backend code、Docker、compose、Makefile 或 config 后，必须运行 `make compose`，重建 backend/frontend image 并启动整套服务。
 - `make compose` 成功后，必须按改动范围做 smoke check，例如访问 frontend 页面、调用相关 `/api/v1` endpoint、查看容器状态或日志。
