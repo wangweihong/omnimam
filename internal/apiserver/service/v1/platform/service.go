@@ -61,6 +61,8 @@ type PlatformSrv interface {
 		ctx context.Context,
 		req *iapiserver.ProviderModelUpdateRequest,
 	) (*iapiserver.ProviderModel, error)
+	// ProviderModelDelete 删除一个模型提供商下的模型，并清理相关默认模型绑定。
+	ProviderModelDelete(ctx context.Context, providerID, id string) (*iapiserver.ProviderModel, error)
 	// ProviderModelSync imports remote model metadata for one provider without invoking generation.
 	ProviderModelSync(
 		ctx context.Context,
@@ -428,6 +430,27 @@ func (s *platformService) ProviderModelUpdate(
 	model.Pricing = general.FallbackIfNil(req.Pricing, model.Pricing)
 
 	return s.store.ProviderModels().Update(ctx, model)
+}
+
+func (s *platformService) ProviderModelDelete(
+	ctx context.Context,
+	providerID string,
+	id string,
+) (*iapiserver.ProviderModel, error) {
+	model, err := s.store.ProviderModels().Get(ctx, id)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	if model.ProviderID != providerID {
+		return nil, errors.NewStatusF(code.ErrValidation, "provider model %s does not belong to provider %s", id, providerID)
+	}
+	if err := s.store.SystemLLMConfigs().DeleteByProviderModelID(ctx, providerID, id); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	if err := s.store.ProviderModels().Delete(ctx, providerID, id); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return model, nil
 }
 
 func (s *platformService) ProviderModelSync(

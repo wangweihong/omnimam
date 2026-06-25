@@ -146,6 +146,14 @@ func (s *providerModelStore) Update(
 	return data, nil
 }
 
+func (s *providerModelStore) Delete(ctx context.Context, providerID, id string) error {
+	return errors.WithStack(
+		s.ds.db.WithContext(ctx).
+			Where("provider_id = ? AND id = ?", providerID, id).
+			Delete(&iapiserver.ProviderModel{}).Error,
+	)
+}
+
 func (s *providerModelStore) DeleteByProviderID(ctx context.Context, providerID string) error {
 	return errors.WithStack(
 		s.ds.db.WithContext(ctx).Where("provider_id = ?", providerID).Delete(&iapiserver.ProviderModel{}).Error,
@@ -219,6 +227,14 @@ func (s *systemLLMConfigStore) Upsert(
 func (s *systemLLMConfigStore) DeleteByProviderID(ctx context.Context, providerID string) error {
 	return errors.WithStack(
 		s.ds.db.WithContext(ctx).Where("provider_id = ?", providerID).Delete(&iapiserver.SystemLLMConfig{}).Error,
+	)
+}
+
+func (s *systemLLMConfigStore) DeleteByProviderModelID(ctx context.Context, providerID, modelID string) error {
+	return errors.WithStack(
+		s.ds.db.WithContext(ctx).
+			Where("provider_id = ? AND model_id = ?", providerID, modelID).
+			Delete(&iapiserver.SystemLLMConfig{}).Error,
 	)
 }
 

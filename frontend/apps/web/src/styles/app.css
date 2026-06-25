@@ -1362,6 +1362,14 @@ select {
   margin: 0;
 }
 
+.model-head-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .provider-detail-head small {
   color: var(--muted);
 }
@@ -1439,6 +1447,17 @@ select {
   display: flex;
   gap: 6px;
   align-items: center;
+}
+
+.model-delete-button {
+  border-color: rgba(180, 35, 24, 0.18);
+  background: #fff7f6;
+  color: #b42318;
+}
+
+.model-delete-button:hover {
+  border-color: rgba(180, 35, 24, 0.36);
+  background: #fee4e2;
 }
 
 .model-type-icon {

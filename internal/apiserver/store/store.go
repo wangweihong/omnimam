@@ -162,6 +162,8 @@ type ProviderModelStore interface {
 	Get(ctx context.Context, id string) (*iapiserver.ProviderModel, error)
 	Add(ctx context.Context, data *iapiserver.ProviderModel) (*iapiserver.ProviderModel, error)
 	Update(ctx context.Context, data *iapiserver.ProviderModel) (*iapiserver.ProviderModel, error)
+	// Delete 删除指定模型提供商下的一个模型元数据。
+	Delete(ctx context.Context, providerID, id string) error
 	// DeleteByProviderID removes all models under one provider.
 	DeleteByProviderID(ctx context.Context, providerID string) error
 }
@@ -174,6 +176,8 @@ type ProviderCapabilityStore interface {
 type SystemLLMConfigStore interface {
 	List(ctx context.Context) ([]*iapiserver.SystemLLMConfig, error)
 	Upsert(ctx context.Context, data *iapiserver.SystemLLMConfig) (*iapiserver.SystemLLMConfig, error)
+	// DeleteByProviderModelID 删除引用指定模型的默认模型绑定。
+	DeleteByProviderModelID(ctx context.Context, providerID, modelID string) error
 	// DeleteByProviderID removes all default model bindings under one provider.
 	DeleteByProviderID(ctx context.Context, providerID string) error
 }

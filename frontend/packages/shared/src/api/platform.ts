@@ -79,6 +79,10 @@ export function updateProviderModel(providerID: string, modelID: string, input: 
   return apiClient.patch(`/providers/${providerID}/models/${modelID}`, input);
 }
 
+export function deleteProviderModel(providerID: string, modelID: string) {
+  return apiClient.delete(`/providers/${providerID}/models/${modelID}`);
+}
+
 export function syncProviderModels(providerID: string) {
   return apiClient.post<ProviderModelSyncResponse>(`/providers/${providerID}/models/sync`, {});
 }

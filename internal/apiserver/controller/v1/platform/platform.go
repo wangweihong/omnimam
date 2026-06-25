@@ -107,6 +107,14 @@ func (pc *PlatformController) UpdateProviderModel(c *gin.Context) {
 	})
 }
 
+// DeleteProviderModel 删除一个模型提供商下的模型，并清理相关默认模型绑定。
+// 该接口只删除模型元数据，不会返回或修改 provider credential，也不会返回 asset 原始内容。
+func (pc *PlatformController) DeleteProviderModel(c *gin.Context) {
+	core.Run(c, nil, func(_ any) (any, error) {
+		return pc.srv.Platforms().ProviderModelDelete(c, c.Param("provider_id"), c.Param("model_id"))
+	})
+}
+
 // SyncProviderModels imports remote OpenAI-compatible model metadata for one provider.
 // It updates provider model metadata only and does not return raw provider credentials.
 func (pc *PlatformController) SyncProviderModels(c *gin.Context) {
