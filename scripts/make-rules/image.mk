@@ -8,7 +8,7 @@ REGISTRY_PREFIX ?= omnimam
 BASE_IMAGE = registry.cn-hangzhou.aliyuncs.com/eazycloud/ubuntu:24.04
 
 # EXTRA_ARGS ?= --no-cache
-EXTRA_ARGS ?=
+EXTRA_ARGS ?= --pull=false
 _DOCKER_BUILD_EXTRA_ARGS := --build-arg BASE_IMAGE=${BASE_IMAGE}
 
 ifdef HTTP_PROXY
@@ -105,7 +105,7 @@ image.build.%: go.build.%
 	@cp $(OUTPUT_DIR)/configs/$(IMAGE).yaml $(TMP_DIR)/$(IMAGE)/ || true
 	@cp -rf $(OUTPUT_DIR)/platforms $(TMP_DIR)/$(IMAGE)/
 	@DST_DIR=$(TMP_DIR)/$(IMAGE) $(ROOT_DIR)/build/docker/$(IMAGE)/build.sh 2>/dev/null || true
-	$(eval BUILD_SUFFIX := $(_DOCKER_BUILD_EXTRA_ARGS) --pull -t $(IMAGETAG) $(TMP_DIR)/$(IMAGE))
+	$(eval BUILD_SUFFIX := $(_DOCKER_BUILD_EXTRA_ARGS) -t $(IMAGETAG) $(TMP_DIR)/$(IMAGE))
 	@$(DOCKER) build $(BUILD_SUFFIX)
 	@rm -rf $(TMP_DIR)/$(IMAGE)
 
