@@ -183,8 +183,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
   const selected = useMemo(() => providers.find((provider) => provider.id === selectedProvider), [providers, selectedProvider]);
   const providerModels = models[selectedProvider] || [];
   const providerByID = useMemo(() => Object.fromEntries(providers.map((provider) => [provider.id, provider])), [providers]);
-  const hasSavedAPIKey = selected?.credential_ref === "configured";
-  const canTestProvider = Boolean(selected && draft.base_url.trim() && (apiKey.trim() || hasSavedAPIKey));
+  const canTestProvider = Boolean(selected && draft.base_url.trim() && apiKey.trim());
   const enabledModels = useMemo(
     () => Object.values(models).flat().filter((model) => model.enabled && providerByID[model.provider_id]?.enabled),
     [models, providerByID]
@@ -237,7 +236,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       preset_key: selected.preset_key || "",
       config: { ...(selected.config || {}) }
     });
-    setApiKey("");
+    setApiKey(selected.credential_ref || "");
   }, [selected]);
 
   const filteredProviders = useMemo(() => {
@@ -644,7 +643,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
                           type={showKey ? "text" : "password"}
                           value={apiKey}
                           disabled={!canWrite}
-                          placeholder={selected.credential_ref ? "已配置，留空表示不修改" : "API key 或 env:KEY"}
+                          placeholder="API key"
                           onChange={(event) => setApiKey(event.target.value)}
                         />
                         <button className="icon-button button" type="button" onClick={() => setShowKey((value) => !value)}>
