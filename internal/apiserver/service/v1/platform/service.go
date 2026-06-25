@@ -25,6 +25,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/wangweihong/gotoolbox/pkg/errors"
 	"github.com/wangweihong/gotoolbox/pkg/httpcli"
+	"github.com/wangweihong/gotoolbox/pkg/log"
 	"github.com/wangweihong/gotoolbox/pkg/sets"
 
 	"github.com/wangweihong/omnimam/apis/iapiserver"
@@ -230,9 +231,6 @@ func (s *platformService) ProviderList(
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	for i, item := range items {
-		items[i] = sanitizeProvider(item)
-	}
 	return &iapiserver.ProviderListResponse{ListRet: imachinery.ListRet{Total: total}, Providers: items}, nil
 }
 
@@ -259,7 +257,7 @@ func (s *platformService) ProviderCreate(
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	return sanitizeProvider(created), nil
+	return created, nil
 }
 
 func (s *platformService) ProviderUpdate(
@@ -272,22 +270,20 @@ func (s *platformService) ProviderUpdate(
 	}
 
 	provider.Name = general.FallbackIfNil(req.Name, provider.Name)
-	// if err := s.ensureProviderNameUnique(ctx, provider.Name, provider.ID); err != nil {
-	// 	return nil, errors.WithStack(err)
-	// }
 	provider.Type = general.FallbackIfNil(req.Type, provider.Type)
 	provider.Enabled = general.FallbackIfNil(req.Enabled, provider.Enabled)
 	provider.BaseURL = general.FallbackIfNil(req.BaseURL, provider.BaseURL)
 	provider.AuthType = general.FallbackIfNil(req.AuthType, provider.AuthType)
 	provider.CredentialRef = general.FallbackIfNil(req.CredentialRef, provider.CredentialRef)
-	provider.PresetKey = general.FallbackIfNil(req.PresetKey, provider.PresetKey)
-	provider.Config = general.FallbackIfNil(req.Config, provider.Config)
+	provider.BaseURL = general.FallbackIfNil(req.BaseURL, provider.BaseURL)
 
+	log.Infof("ProviderUpdate: %+v", provider)
+	log.Infof("req: %+v", req)
 	updated, err := s.store.Providers().Update(ctx, provider)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	return sanitizeProvider(updated), nil
+	return updated, nil
 }
 
 func (s *platformService) ProviderDelete(ctx context.Context, id string) (*iapiserver.Provider, error) {
@@ -304,7 +300,7 @@ func (s *platformService) ProviderDelete(ctx context.Context, id string) (*iapis
 	if err := s.store.Providers().Delete(ctx, id); err != nil {
 		return nil, errors.WithStack(err)
 	}
-	return sanitizeProvider(provider), nil
+	return provider, nil
 }
 
 func (s *platformService) ProviderPresetList(ctx context.Context) (*iapiserver.ProviderPresetListResponse, error) {
@@ -333,7 +329,7 @@ func (s *platformService) ProviderPresetInstall(ctx context.Context, presetKey s
 			if err != nil {
 				return nil, errors.WithStack(err)
 			}
-			return sanitizeProvider(updated), nil
+			return updated, nil
 		}
 	}
 	provider := &iapiserver.Provider{
@@ -349,7 +345,7 @@ func (s *platformService) ProviderPresetInstall(ctx context.Context, presetKey s
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	return sanitizeProvider(created), nil
+	return created, nil
 }
 
 func (s *platformService) ProviderTest(
@@ -696,17 +692,6 @@ func ruleMatchesModel(rule iapiserver.ProviderModelTypeRule, lowerModel string) 
 	return false
 }
 
-func sanitizeProvider(provider *iapiserver.Provider) *iapiserver.Provider {
-	if provider == nil {
-		return nil
-	}
-	ret := *provider
-	if strings.TrimSpace(ret.CredentialRef) != "" {
-		ret.CredentialRef = "configured"
-	}
-	return &ret
-}
-
 func (s *platformService) ensureProviderModelUnique(
 	ctx context.Context,
 	providerID, name, modelName, exceptID string,
@@ -822,9 +807,6 @@ func openAICompatibleEndpoint(baseURL string, path string) string {
 
 func firstProviderAPIKey(credentialRef string) string {
 	ref := strings.TrimSpace(credentialRef)
-	if strings.HasPrefix(ref, "env:") {
-		return os.Getenv(strings.TrimPrefix(ref, "env:"))
-	}
 	for _, item := range strings.Split(ref, ",") {
 		if key := strings.TrimSpace(item); key != "" {
 			return key

@@ -60,7 +60,7 @@ func (pc *PlatformController) InstallProviderPreset(c *gin.Context) {
 
 func (pc *PlatformController) UpdateProvider(c *gin.Context) {
 	req := &iapiserver.ProviderUpdateRequest{ID: c.Param("provider_id")}
-	core.Run(c, nil, func(_ any) (any, error) {
+	core.Run(c, req, func(r *iapiserver.ProviderUpdateRequest) (any, error) {
 		return pc.srv.Platforms().ProviderUpdate(c, req)
 	})
 

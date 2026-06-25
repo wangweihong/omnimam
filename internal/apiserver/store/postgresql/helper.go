@@ -19,5 +19,7 @@ func GetByName(db *gorm.DB, model interface{}, value string) bool {
 	query := db.Model(model).Where("name = ?", value)
 	var count int64
 	query.Count(&count)
+	query.First(model)
+
 	return count > 0
 }

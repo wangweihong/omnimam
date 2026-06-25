@@ -51,8 +51,6 @@ type (
 		BaseURL       *string         `json:"base_url"`
 		AuthType      *string         `json:"auth_type"`
 		CredentialRef *string         `json:"credential_ref"`
-		PresetKey     *string         `json:"preset_key"`
-		Config        *map[string]any `json:"config"`
 	}
 
 	ProviderPresetListResponse struct {
