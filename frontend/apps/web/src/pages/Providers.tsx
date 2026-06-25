@@ -43,11 +43,10 @@ import {
   X,
   Zap
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ApiErrorView } from "../components/ApiErrorView";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { PageHeader } from "../components/PageHeader";
-import { StatusBadge } from "../components/StatusBadge";
 
 const defaultPurposes = [
   {
@@ -80,6 +79,8 @@ const modelTypeOptions = [
 ];
 
 const endpointOptions = ["chat", "responses", "embeddings", "rerank", "image", "audio", "custom"];
+
+const providerTypeOptions = ["deepseek", "openai-compatible"];
 
 const providerAddOptions = [
   { key: "openai", label: "OpenAI", type: "openai-compatible" },
@@ -125,6 +126,13 @@ type ProviderRemarkState = {
   value: string;
 };
 
+type ProviderEditState = {
+  provider: Provider;
+  name: string;
+  type: string;
+  error: unknown;
+};
+
 function parseCapabilities(value: FormDataEntryValue | string | null) {
   return String(value || "")
     .split(/[,，\s]+/)
@@ -166,6 +174,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
     config: {}
   });
   const [addProviderOpen, setAddProviderOpen] = useState(false);
+  const [addProviderError, setAddProviderError] = useState<unknown>(null);
   const [apiSettingsOpen, setAPISettingsOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<ProviderModel | null>(null);
   const [modelDraft, setModelDraft] = useState<ModelDraft | null>(null);
@@ -174,9 +183,8 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
   const [error, setError] = useState<unknown>(null);
   const [contextMenu, setContextMenu] = useState<ProviderContextMenuState | null>(null);
   const [remarkState, setRemarkState] = useState<ProviderRemarkState | null>(null);
+  const [providerEditState, setProviderEditState] = useState<ProviderEditState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Provider | null>(null);
-  const [pendingEditProviderID, setPendingEditProviderID] = useState("");
-  const providerNameInputRef = useRef<HTMLInputElement | null>(null);
 
   const selected = useMemo(() => providers.find((provider) => provider.id === selectedProvider), [providers, selectedProvider]);
   const providerModels = models[selectedProvider] || [];
@@ -229,13 +237,6 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
     setNotice("");
   }, [selected]);
 
-  useEffect(() => {
-    if (!selected || pendingEditProviderID !== selected.id) return;
-    providerNameInputRef.current?.focus();
-    providerNameInputRef.current?.select();
-    setPendingEditProviderID("");
-  }, [pendingEditProviderID, selected]);
-
   const filteredProviders = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     if (!keyword) return providers;
@@ -267,17 +268,17 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
     const providerKind = String(form.get("provider_kind") || providerAddOptions[0].key);
     const option = providerAddOptions.find((item) => item.key === providerKind) || providerAddOptions[0];
     const name = String(form.get("name") || "").trim() || option.label;
+    setAddProviderError(null);
     if (providerNameExists(name)) {
-      setError(new Error(`模型提供商名称「${name}」已存在`));
+      setAddProviderError(new Error(`模型提供商名称「${name}」已存在`));
       return;
     }
     setBusy("add-provider");
-    setError(null);
     try {
       await createProvider({
         name,
         type: option.type,
-        enabled: true,
+        enabled: false,
         base_url: form.get("base_url"),
         auth_type: "api_key",
         credential_ref: form.get("credential_ref"),
@@ -285,10 +286,11 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       });
       formElement.reset();
       setAddProviderOpen(false);
+      setAddProviderError(null);
       setNotice("模型提供商已添加");
       await load();
     } catch (err) {
-      setError(err);
+      setAddProviderError(err);
     } finally {
       setBusy("");
     }
@@ -504,12 +506,41 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
     setContextMenu(null);
     setSection("services");
     setSelectedProvider(provider.id);
-    setPendingEditProviderID(provider.id);
+    setProviderEditState({
+      provider,
+      name: provider.name || "",
+      type: provider.type || "openai-compatible",
+      error: null
+    });
   }
 
   function openDeleteProviderDialog(provider: Provider) {
     setContextMenu(null);
     setDeleteTarget(provider);
+  }
+
+  async function saveProviderEditor() {
+    if (!providerEditState) return;
+    const nextName = providerEditState.name.trim();
+    if (providerNameExists(nextName, providerEditState.provider.id)) {
+      setProviderEditState((current) => current ? { ...current, error: new Error(`模型提供商名称「${nextName}」已存在`) } : current);
+      return;
+    }
+    setBusy("edit-provider");
+    setProviderEditState((current) => current ? { ...current, error: null } : current);
+    try {
+      await updateProvider(providerEditState.provider.id, {
+        name: nextName,
+        type: providerEditState.type
+      });
+      setProviderEditState(null);
+      setNotice("模型提供商已保存");
+      await load();
+    } catch (err) {
+      setProviderEditState((current) => current ? { ...current, error: err } : current);
+    } finally {
+      setBusy("");
+    }
   }
 
   return (
@@ -540,7 +571,6 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
                 <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索模型提供商..." />
                 <Filter size={16} />
               </div>
-              <div className="provider-section-title">已配置提供商</div>
               <div className="list">
                 {/* 每个云提供商渲染成一个button */}
                 {filteredProviders.map((provider) => (
@@ -555,12 +585,19 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
                       <strong>{provider.name}</strong>
                       <small>{provider.type} · {provider.base_url || "未配置 API 地址"}</small>
                     </span>
-                    <StatusBadge value={provider.enabled} />
+                    {provider.enabled ? <span className="status good">ON</span> : null}
                   </button>
                 ))}
               </div>
               {canWrite ? (
-                <button className="button primary add-provider-button" type="button" onClick={() => setAddProviderOpen(true)}>
+                <button
+                  className="button primary add-provider-button"
+                  type="button"
+                  onClick={() => {
+                    setAddProviderError(null);
+                    setAddProviderOpen(true);
+                  }}
+                >
                   <Plus size={16} /> 添加提供商
                 </button>
               ) : null}
@@ -587,27 +624,11 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
                       disabled={!canWrite}
                       onClick={() => setDraft((current) => ({ ...current, enabled: !current.enabled }))}
                     >
-                      {draft.enabled ? "ON" : "OFF"}
+                      {draft.enabled ? "ON" : ""}
                     </button>
                   </div>
 
                   <div className="settings-form">
-                    <label>
-                      <span>名称</span>
-                      <input
-                        ref={providerNameInputRef}
-                        value={draft.name}
-                        disabled={!canWrite}
-                        onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                      />
-                    </label>
-                    <label>
-                      <span>类型</span>
-                      <select value={draft.type} disabled={!canWrite} onChange={(event) => setDraft((current) => ({ ...current, type: event.target.value }))}>
-                        <option value="deepseek">deepseek</option>
-                        <option value="openai-compatible">openai-compatible</option>
-                      </select>
-                    </label>
                     <label>
                       <span>API 密钥</span>
                       <div className="inline-input">
@@ -746,8 +767,29 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
       {addProviderOpen ? (
         <AddProviderModal
           busy={busy === "add-provider"}
-          onClose={() => setAddProviderOpen(false)}
+          error={addProviderError}
+          onClose={() => {
+            if (busy !== "add-provider") {
+              setAddProviderOpen(false);
+              setAddProviderError(null);
+            }
+          }}
           onSubmit={addProvider}
+        />
+      ) : null}
+
+      {providerEditState ? (
+        <ProviderEditModal
+          canWrite={canWrite}
+          busy={busy === "edit-provider"}
+          state={providerEditState}
+          onClose={() => {
+            if (busy !== "edit-provider") {
+              setProviderEditState(null);
+            }
+          }}
+          onChange={setProviderEditState}
+          onSave={() => void saveProviderEditor()}
         />
       ) : null}
 
@@ -766,7 +808,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
         />
       ) : null}
       {remarkState ? (
-        <div className="provider-remark-backdrop" onClick={() => setRemarkState(null)}>
+        <div className="provider-remark-backdrop">
           <div className="provider-remark-dialog" onClick={(event) => event.stopPropagation()}>
             <h3>备注 - {remarkState.provider.name}</h3>
             <textarea
@@ -813,6 +855,7 @@ export function Providers({ canWrite }: { canWrite: boolean }) {
           description="删除后会同时清理该提供商下的模型和相关默认模型绑定，此操作不可撤销。"
           confirmLabel="确认删除"
           busy={busy === "delete-provider"}
+          closeOnBackdrop={false}
           tone="danger"
           onCancel={() => {
             if (busy !== "delete-provider") {
@@ -863,7 +906,7 @@ function APISettingsModal({
   }
 
   return (
-    <div className="asset-modal-backdrop" role="presentation" onClick={onClose}>
+    <div className="asset-modal-backdrop" role="presentation">
       <div className="settings-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
         <div className="dialog-head">
           <div>
@@ -887,7 +930,7 @@ function APISettingsModal({
                   type="button"
                   onClick={() => setValue(setting.key, !Boolean(config[setting.key] ?? setting.default))}
                 >
-                  {Boolean(config[setting.key] ?? setting.default) ? "ON" : "OFF"}
+                  {Boolean(config[setting.key] ?? setting.default) ? "ON" : ""}
                 </button>
               ) : (
                 <input
@@ -909,15 +952,17 @@ function APISettingsModal({
 
 function AddProviderModal({
   busy,
+  error,
   onClose,
   onSubmit
 }: {
   busy: boolean;
+  error: unknown;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <div className="asset-modal-backdrop" role="presentation" onClick={onClose}>
+    <div className="asset-modal-backdrop" role="presentation">
       <form className="settings-dialog provider-add-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()} onSubmit={onSubmit}>
         <div className="dialog-head">
           <div>
@@ -941,6 +986,7 @@ function AddProviderModal({
             </select>
           </label>
         </div>
+        <ApiErrorView error={error} />
         <div className="form-actions">
           <button className="button" type="button" onClick={onClose}>取消</button>
           <button className="button primary" type="submit" disabled={busy}>
@@ -948,6 +994,63 @@ function AddProviderModal({
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function ProviderEditModal({
+  state,
+  canWrite,
+  busy,
+  onClose,
+  onChange,
+  onSave
+}: {
+  state: ProviderEditState;
+  canWrite: boolean;
+  busy: boolean;
+  onClose: () => void;
+  onChange: (state: ProviderEditState) => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="asset-modal-backdrop" role="presentation">
+      <div className="settings-dialog provider-add-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+        <div className="dialog-head">
+          <div>
+            <h3>编辑模型提供商</h3>
+            <small>{state.provider.id}</small>
+          </div>
+          <button className="icon-button button" type="button" disabled={busy} onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className="settings-form">
+          <label>
+            <span>名称</span>
+            <input
+              value={state.name}
+              disabled={!canWrite || busy}
+              onChange={(event) => onChange({ ...state, name: event.target.value, error: null })}
+            />
+          </label>
+          <label>
+            <span>类型</span>
+            <select
+              value={state.type}
+              disabled={!canWrite || busy}
+              onChange={(event) => onChange({ ...state, type: event.target.value, error: null })}
+            >
+              {providerTypeOptions.map((type) => <option key={type} value={type}>{type}</option>)}
+            </select>
+          </label>
+        </div>
+        <ApiErrorView error={state.error} />
+        <div className="form-actions">
+          <button className="button" type="button" disabled={busy} onClick={onClose}>取消</button>
+          <button className="button primary" type="button" disabled={!canWrite || busy} onClick={onSave}>
+            <Save size={16} /> 保存
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -978,7 +1081,7 @@ function ModelEditModal({
   }
 
   return (
-    <div className="asset-modal-backdrop" role="presentation" onClick={onClose}>
+    <div className="asset-modal-backdrop" role="presentation">
       <div className="settings-dialog wide" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
         <div className="dialog-head">
           <div>
@@ -1038,7 +1141,7 @@ function ModelEditModal({
               type="button"
               onClick={() => onChange({ ...draft, supports_stream: !draft.supports_stream })}
             >
-              {draft.supports_stream ? "ON" : "OFF"}
+              {draft.supports_stream ? "ON" : ""}
             </button>
           </label>
           <label>

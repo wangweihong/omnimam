@@ -191,6 +191,24 @@ func TestProviderCreateRejectsDuplicateName(t *testing.T) {
 	}
 }
 
+func TestProviderCreateHonorsDisabledRequest(t *testing.T) {
+	svc := newTestPlatformService()
+	ctx := context.Background()
+	enabled := false
+
+	provider, err := svc.ProviderCreate(ctx, &iapiserver.ProviderCreateRequest{
+		Name:    "alpha",
+		Type:    iapiserver.ProviderTypeOpenAICompatible,
+		Enabled: &enabled,
+	})
+	if err != nil {
+		t.Fatalf("create provider: %v", err)
+	}
+	if provider.Enabled {
+		t.Fatal("expected provider to be disabled")
+	}
+}
+
 func TestProviderUpdateAllowsSameNameButRejectsOtherProviderName(t *testing.T) {
 	svc := newTestPlatformService()
 	ctx := context.Background()

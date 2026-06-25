@@ -7,6 +7,7 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   busy?: boolean;
+  closeOnBackdrop?: boolean;
   tone?: "default" | "danger";
   onCancel: () => void;
   onConfirm: () => void | Promise<void>;
@@ -18,6 +19,7 @@ export function ConfirmDialog({
   confirmLabel = "确认",
   cancelLabel = "取消",
   busy = false,
+  closeOnBackdrop = true,
   tone = "default",
   onCancel,
   onConfirm
@@ -33,7 +35,7 @@ export function ConfirmDialog({
   }, [busy, onCancel]);
 
   return (
-    <div className="asset-modal-backdrop" role="presentation" onClick={() => !busy && onCancel()}>
+    <div className="asset-modal-backdrop" role="presentation" onClick={() => closeOnBackdrop && !busy && onCancel()}>
       <div className="settings-dialog confirm-dialog" role="alertdialog" aria-modal="true" aria-busy={busy} onClick={(event) => event.stopPropagation()}>
         <div className="dialog-head">
           <div className="confirm-dialog-head">

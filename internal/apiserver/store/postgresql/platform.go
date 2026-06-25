@@ -48,8 +48,17 @@ func (s *providerStore) Get(ctx context.Context, id string) (*iapiserver.Provide
 }
 
 func (s *providerStore) Add(ctx context.Context, data *iapiserver.Provider) (*iapiserver.Provider, error) {
-	if err := s.ds.db.WithContext(ctx).Create(data).Error; err != nil {
+	enabled := data.Enabled
+	db := s.ds.db.WithContext(ctx)
+	if err := db.Create(data).Error; err != nil {
 		return nil, errors.WithStack(err)
+	}
+	if !enabled {
+		// GORM applies the `default:true` tag to false bool zero values on create.
+		if err := db.Model(data).UpdateColumn("enabled", false).Error; err != nil {
+			return nil, errors.WithStack(err)
+		}
+		data.Enabled = false
 	}
 	return data, nil
 }

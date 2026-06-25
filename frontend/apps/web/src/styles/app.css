@@ -1110,6 +1110,21 @@ select {
   min-height: 560px;
 }
 
+.provider-list-panel {
+  height: min(640px, calc(100vh - 180px));
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+}
+
+.provider-list-panel > .list {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-right: 2px;
+  scrollbar-width: thin;
+}
+
 .provider-search {
   display: flex;
   align-items: center;
