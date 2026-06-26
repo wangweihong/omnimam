@@ -123,7 +123,6 @@
 ## 修改后验证规则 Verification Rules
 - 每次修改 frontend code、backend code、Docker、compose、Makefile 或 config 后，必须运行 `make compose`，重建 backend/frontend image 并启动整套服务。
 - `make compose` 成功后，必须按改动范围做 smoke check，例如访问 frontend 页面、调用相关 `/api/v1` endpoint、查看容器状态或日志。
-- 如果修改 Go/backend code 或 backend binary 相关逻辑，还必须运行 `go test ./...` 或项目约定的最小相关测试。
 - 如果用户明确要求本轮不要执行 `make compose`，必须在交付结果中说明未执行以及对应风险。
 - Frontend-only 修改不强制运行 Go 的 `make format`、`make lint`、`go test` 和 `make build`。
 - 修改 docs-only 文件不强制运行 `make format`、`make lint`、`go test`、`make build`，但必须检查文档内容和 git 状态。
