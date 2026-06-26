@@ -1,7 +1,21 @@
 # Backend 开发规则
 - 使用 Go。
 - 所有代码必须在 `backend/` 目录下。
-  
+- 
+## 架构原则 Architecture Principles
+- API endpoint 统一使用 `/api/v1` 前缀。
+- `API Server` 必须保持 stateless，便于横向扩展。
+- `Worker` 必须作为独立进程运行，并可按 task type 或 queue 横向扩容。
+- Database 只保存 metadata、task state、permission、setting 和 indexed search fields。
+- Asset binary file 不能存入 database。
+- Asset 在用户视角下是逻辑平面，不暴露本地绝对路径或云存储路径；组织方式通过 tag、group、dataset、project、search 完成。
+- 物理存储位置必须隐藏在 `StorageBackend` 后面，并通过受控 content endpoint、thumbnail endpoint 或 signed URL 访问。
+- 图片、视频、音频、PDF 等 heavy asset 在列表中必须使用 thumbnail、placeholder 或 derived preview，不能直接渲染原始文件。
+- Long-running operation 必须通过 async `Task` 执行。
+- Provider 集成必须基于 capability/protocol，不允许业务层硬编码到单一 vendor。
+- Frontend 可见能力必须由 backend 返回的 permission 和 `FeatureFlag` 驱动，入口信息来自 `/api/v1/me`。
+- Frontend hiding 不是安全边界；backend permission check 和 feature gate 始终是权威判断。
+- 
 ## Error Code 与 HTTP Status 规则
 - 对外接口调用失败时，必须返回正确的 business error code 和 HTTP status code。
 - 新增或调整错误码时，按 `internal/pkg/code/base.go` 的写法添加注释，至少包含：  - `@HTTP`：对应 HTTP status code。
@@ -44,3 +58,26 @@
 	}
 	return items, total, nil
 ``` 
+
+## 代码逻辑注释规则 Code Logic Comment Rules
+- 本节适用于 frontend 和 backend 的实现逻辑注释，不替代 `接口注释要求 Interface Comment Requirements` 中对 exported interface method、controller endpoint 和 public API 的注释要求。
+- 仅在复杂业务逻辑、非显而易见的算法或实现、跨模块或跨层调用的关键数据流转、容易误解或踩坑的实现、使用非常规或非直观的库或接口行为时，才允许并应优先考虑添加注释。
+- `Magic Number`、复杂正则、锁或并发控制、类型强制转换、外部依赖降级策略属于必须重点检查的注释触发场景；遇到这些实现时，默认先判断是否需要通过注释说明设计意图、约束来源或风险。
+- 修复 bug 时，允许并要求添加注释解释修改原因，重点说明为什么这样改、在防什么回归、涉及什么兼容性或历史问题；禁止只复述代码字面行为。
+- 禁止解释关键字或基础语法，例如 `for`、`if`、`switch`、`await`、`try/catch`。
+- 禁止复述代码字面意思，禁止变量名或函数名字面解释型注释，禁止为简单 getter/setter、结构体字段、明显语义代码添加说明。
+- 注释必须优先解释设计意图、业务原因、约束来源、兼容性背景，而不是逐行翻译代码。
+- 避免冗余注释堆叠，不要为每一行代码添加注释；如果代码本身已经足够自解释，则不允许额外添加注释。
+- 单行注释必须放在代码上方，而不是写在行尾；行尾注释只允许用于极短的对齐型注记，不允许承载逻辑说明或修改原因。
+- 每 50 行代码平均不超过 3 条注释，复杂算法或复杂控制流可以例外，但整体目标必须保持注释密度低、信息密度高。
+- “如果未来接手这段代码的同事看到注释后依然要反复读代码，那这个注释就是失败的；如果注释能让他跳过读代码直接理解意图，那它就是必要的。”
+
+## 接口注释要求 Interface Comment Requirements
+
+- 新增或修改 HTTP API、service interface、store interface、provider adapter interface、worker task interface 时，必须补充对应功能注释。
+- 在apis/iaiserver的结构体必须要补充对应的字段的功能注释
+- 注释至少说明接口用途、主要 input/output、关键 side effect 或 async behavior。
+- Public API 注释需要说明 permission 或 `FeatureFlag` 的影响。
+- Public API 注释需要说明 endpoint 是否返回原始 asset content、只返回 metadata/thumbnail，或是否创建 async `Task`。
+- Internal helper function 不要求长注释，但 exported interface method 和 controller endpoint 必须有清晰功能说明。
+- 注释使用中文标注

@@ -1,0 +1,79 @@
+# 告诉 Codex 某类代码变更应该同步更新哪些文档。
+rules:
+  - change: backend_api
+    match:
+      paths:
+        - "backend/router/**"
+        - "backend/api/**"
+        - "backend/controller/**"
+        - "backend/handler/**"
+        - "backend/service/**"
+        - "server/**"
+        - "internal/**"
+    update_docs:
+      - "docs/generated/api-inventory.md"
+      - "docs/architecture/backend-design.md"
+      - "docs/architecture/module-index.md"
+      - "docs/modules/{module-id}.md"
+
+  - change: frontend_page
+    match:
+      paths:
+        - "frontend/src/pages/**"
+        - "frontend/src/routes/**"
+        - "frontend/src/components/**"
+        - "web/src/pages/**"
+        - "web/src/router/**"
+        - "src/pages/**"
+        - "src/router/**"
+    update_docs:
+      - "docs/generated/frontend-inventory.md"
+      - "docs/architecture/frontend-design.md"
+      - "docs/architecture/module-index.md"
+      - "docs/modules/{module-id}.md"
+
+  - change: database_schema
+    match:
+      paths:
+        - "backend/model/**"
+        - "backend/models/**"
+        - "backend/migration/**"
+        - "backend/migrations/**"
+        - "internal/model/**"
+        - "internal/models/**"
+        - "schema.sql"
+        - "migrations/**"
+    update_docs:
+      - "docs/generated/db-inventory.md"
+      - "docs/architecture/database-design.md"
+      - "docs/modules/{module-id}.md"
+
+  - change: config_or_permission
+    match:
+      paths:
+        - "config/**"
+        - "configs/**"
+        - "backend/config/**"
+        - "internal/config/**"
+        - "backend/middleware/**"
+        - "internal/middleware/**"
+    update_docs:
+      - "docs/generated/code-inventory.md"
+      - "docs/architecture/system-overview.md"
+      - "docs/architecture/backend-design.md"
+      - "docs/modules/{module-id}.md"
+
+  - change: new_module
+    match:
+      paths:
+        - "backend/**"
+        - "frontend/**"
+        - "web/**"
+        - "internal/**"
+        - "src/**"
+    update_docs:
+      - "docs/module-manifest.yaml"
+      - "docs/architecture/system-overview.md"
+      - "docs/architecture/module-index.md"
+      - "docs/architecture/roadmap.md"
+      - "docs/modules/{module-id}.md"
