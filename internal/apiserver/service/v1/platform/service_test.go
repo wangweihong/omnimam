@@ -326,6 +326,89 @@ func TestProviderModelUpdateAllowsSameValuesButRejectsConflicts(t *testing.T) {
 	}
 }
 
+func TestProviderModelDeleteClearsDefaultModelBinding(t *testing.T) {
+	svc := newTestPlatformService()
+	ctx := context.Background()
+
+	provider, err := svc.ProviderCreate(ctx, &iapiserver.ProviderCreateRequest{Name: "alpha", Type: iapiserver.ProviderTypeOpenAICompatible})
+	if err != nil {
+		t.Fatalf("create provider: %v", err)
+	}
+	model, err := svc.ProviderModelCreate(ctx, &iapiserver.ProviderModelCreateRequest{
+		ProviderID: provider.ID,
+		Name:       "chat-main",
+		Model:      "gpt-main",
+	})
+	if err != nil {
+		t.Fatalf("create model: %v", err)
+	}
+	if _, err := svc.SystemLLMConfigUpsert(ctx, &iapiserver.SystemLLMConfigUpsertRequest{Configs: []*iapiserver.SystemLLMConfigSpec{
+		{
+			Purpose:    "assistant.default",
+			ProviderID: provider.ID,
+			ModelID:    model.ID,
+			Model:      model.Model,
+		},
+	}}); err != nil {
+		t.Fatalf("upsert default model: %v", err)
+	}
+
+	deleted, err := svc.ProviderModelDelete(ctx, provider.ID, model.ID)
+	if err != nil {
+		t.Fatalf("delete model: %v", err)
+	}
+	if deleted.ID != model.ID {
+		t.Fatalf("deleted model id = %s, want %s", deleted.ID, model.ID)
+	}
+	models, total, err := svc.store.ProviderModels().List(ctx, &iapiserver.ProviderModelListRequest{ProviderID: provider.ID})
+	if err != nil {
+		t.Fatalf("list models: %v", err)
+	}
+	if total != 0 || len(models) != 0 {
+		t.Fatalf("models after delete = %d/%d, want 0/0", len(models), total)
+	}
+	configs, err := svc.SystemLLMConfigList(ctx)
+	if err != nil {
+		t.Fatalf("list configs: %v", err)
+	}
+	if len(configs.Configs) != 0 {
+		t.Fatalf("configs after delete = %d, want 0", len(configs.Configs))
+	}
+}
+
+func TestProviderModelDeleteRejectsWrongProvider(t *testing.T) {
+	svc := newTestPlatformService()
+	ctx := context.Background()
+
+	firstProvider, err := svc.ProviderCreate(ctx, &iapiserver.ProviderCreateRequest{Name: "alpha", Type: iapiserver.ProviderTypeOpenAICompatible})
+	if err != nil {
+		t.Fatalf("create provider: %v", err)
+	}
+	secondProvider, err := svc.ProviderCreate(ctx, &iapiserver.ProviderCreateRequest{Name: "beta", Type: iapiserver.ProviderTypeOpenAICompatible})
+	if err != nil {
+		t.Fatalf("create second provider: %v", err)
+	}
+	model, err := svc.ProviderModelCreate(ctx, &iapiserver.ProviderModelCreateRequest{
+		ProviderID: firstProvider.ID,
+		Name:       "chat-main",
+		Model:      "gpt-main",
+	})
+	if err != nil {
+		t.Fatalf("create model: %v", err)
+	}
+
+	if _, err := svc.ProviderModelDelete(ctx, secondProvider.ID, model.ID); err == nil {
+		t.Fatal("expected wrong provider delete to fail")
+	}
+	models, total, err := svc.store.ProviderModels().List(ctx, &iapiserver.ProviderModelListRequest{ProviderID: firstProvider.ID})
+	if err != nil {
+		t.Fatalf("list models: %v", err)
+	}
+	if total != 1 || len(models) != 1 {
+		t.Fatalf("models after rejected delete = %d/%d, want 1/1", len(models), total)
+	}
+}
+
 func TestProviderDeleteClearsModelsAndSystemConfig(t *testing.T) {
 	svc := newTestPlatformService()
 	ctx := context.Background()
@@ -522,6 +605,14 @@ func (s *testProviderModelStore) Update(_ context.Context, data *iapiserver.Prov
 	return &ret, nil
 }
 
+func (s *testProviderModelStore) Delete(_ context.Context, providerID, id string) error {
+	item, ok := s.items[id]
+	if ok && item.ProviderID == providerID {
+		delete(s.items, id)
+	}
+	return nil
+}
+
 func (s *testProviderModelStore) DeleteByProviderID(_ context.Context, providerID string) error {
 	for id, item := range s.items {
 		if item.ProviderID == providerID {
@@ -556,6 +647,15 @@ func (s *testSystemLLMConfigStore) Upsert(
 	s.items[data.Purpose] = &cloned
 	ret := cloned
 	return &ret, nil
+}
+
+func (s *testSystemLLMConfigStore) DeleteByProviderModelID(_ context.Context, providerID, modelID string) error {
+	for purpose, item := range s.items {
+		if item.ProviderID == providerID && item.ModelID == modelID {
+			delete(s.items, purpose)
+		}
+	}
+	return nil
 }
 
 func (s *testSystemLLMConfigStore) DeleteByProviderID(_ context.Context, providerID string) error {

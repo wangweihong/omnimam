@@ -66,6 +66,7 @@ func installPlatformApis(rg *gin.RouterGroup, storeIns store.Factory) {
 		providers.POST("/:provider_id/models", platformController.CreateProviderModel)
 		providers.POST("/:provider_id/models/sync", platformController.SyncProviderModels)
 		providers.PATCH("/:provider_id/models/:model_id", platformController.UpdateProviderModel)
+		providers.DELETE("/:provider_id/models/:model_id", platformController.DeleteProviderModel)
 	}
 
 	rg.GET("/system-llm-config", platformController.GetSystemLLMConfig)

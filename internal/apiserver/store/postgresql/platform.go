@@ -65,19 +65,22 @@ func (s *providerStore) Add(ctx context.Context, data *iapiserver.Provider) (*ia
 }
 
 func (s *providerStore) Update(ctx context.Context, data *iapiserver.Provider) (*iapiserver.Provider, error) {
+	updated := &iapiserver.Provider{}
 	err := s.ds.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		d := &iapiserver.Provider{}
-		if GetByName(tx, d, data.Name) && d.ID != data.ID {
+
+		if GetByName(tx, updated, data.Name) && updated.ID != data.ID {
 			return errors.Errorf("exists provider name '%v' with id '%v'", data.Name, data.ID)
 		}
-
-		if err := tx.Save(data).Error; err != nil {
-			return errors.WithStack(err)
+		// 3. 执行更新，并返回新数据（或使用 Returning）
+		if err := tx.Model(&data).Select("*").Updates(data).Error; err != nil {
+			return err
 		}
+		// 4. 重新查询更新后的数据（或使用 clause.Returning）
+		updated = data // 若 Updates 未填充模型，需重新查询
 		return nil
 	})
 
-	return data, errors.WithStack(err)
+	return updated, errors.WithStack(err)
 }
 
 func (s *providerStore) Delete(ctx context.Context, id string) error {
@@ -141,6 +144,14 @@ func (s *providerModelStore) Update(
 		return nil, errors.WithStack(err)
 	}
 	return data, nil
+}
+
+func (s *providerModelStore) Delete(ctx context.Context, providerID, id string) error {
+	return errors.WithStack(
+		s.ds.db.WithContext(ctx).
+			Where("provider_id = ? AND id = ?", providerID, id).
+			Delete(&iapiserver.ProviderModel{}).Error,
+	)
 }
 
 func (s *providerModelStore) DeleteByProviderID(ctx context.Context, providerID string) error {
@@ -216,6 +227,14 @@ func (s *systemLLMConfigStore) Upsert(
 func (s *systemLLMConfigStore) DeleteByProviderID(ctx context.Context, providerID string) error {
 	return errors.WithStack(
 		s.ds.db.WithContext(ctx).Where("provider_id = ?", providerID).Delete(&iapiserver.SystemLLMConfig{}).Error,
+	)
+}
+
+func (s *systemLLMConfigStore) DeleteByProviderModelID(ctx context.Context, providerID, modelID string) error {
+	return errors.WithStack(
+		s.ds.db.WithContext(ctx).
+			Where("provider_id = ? AND model_id = ?", providerID, modelID).
+			Delete(&iapiserver.SystemLLMConfig{}).Error,
 	)
 }
 

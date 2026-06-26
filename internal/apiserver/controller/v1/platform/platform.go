@@ -60,7 +60,7 @@ func (pc *PlatformController) InstallProviderPreset(c *gin.Context) {
 
 func (pc *PlatformController) UpdateProvider(c *gin.Context) {
 	req := &iapiserver.ProviderUpdateRequest{ID: c.Param("provider_id")}
-	core.Run(c, nil, func(_ any) (any, error) {
+	core.Run(c, req, func(r *iapiserver.ProviderUpdateRequest) (any, error) {
 		return pc.srv.Platforms().ProviderUpdate(c, req)
 	})
 
@@ -104,6 +104,14 @@ func (pc *PlatformController) UpdateProviderModel(c *gin.Context) {
 	}
 	core.Run(c, req, func(r *iapiserver.ProviderModelUpdateRequest) (any, error) {
 		return pc.srv.Platforms().ProviderModelUpdate(c, req)
+	})
+}
+
+// DeleteProviderModel 删除一个模型提供商下的模型，并清理相关默认模型绑定。
+// 该接口只删除模型元数据，不会返回或修改 provider credential，也不会返回 asset 原始内容。
+func (pc *PlatformController) DeleteProviderModel(c *gin.Context) {
+	core.Run(c, nil, func(_ any) (any, error) {
+		return pc.srv.Platforms().ProviderModelDelete(c, c.Param("provider_id"), c.Param("model_id"))
 	})
 }
 
