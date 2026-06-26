@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@omnimam/shared": path.resolve(__dirname, "../../packages/shared/src")
+      "@omnimam/shared": path.resolve(__dirname, "src/shared")
     }
   },
   server: {

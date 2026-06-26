@@ -16,9 +16,9 @@ rules:
   - change: frontend_page
     match:
       paths:
-        - "frontend/src/pages/**"
-        - "frontend/src/routes/**"
-        - "frontend/src/components/**"
+        - "apps/web/src/pages/**"
+        - "apps/web/src/routes/**"
+        - "apps/web/src/components/**"
         - "web/src/pages/**"
         - "web/src/router/**"
     update_docs:
@@ -45,7 +45,7 @@ rules:
     match:
       paths:
         - "backend/**"
-        - "frontend/**"
+        - "apps/web/**"
         - "web/**"
     update_docs:
       - "docs/module-manifest.yaml"

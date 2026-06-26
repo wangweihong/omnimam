@@ -44,9 +44,9 @@
 /Godeps/
 
 ### Frontend ###
-frontend/node_modules/
-frontend/**/dist/
-frontend/**/*.tsbuildinfo
+apps/**/node_modules/
+apps/**/dist/
+apps/**/*.tsbuildinfo
 
 ### JetBrains ###
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
