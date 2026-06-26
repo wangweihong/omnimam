@@ -1,7 +1,6 @@
 # OmniMAM Agent 协作规范
 
 ## 项目方向 Project Direction
-
 - OmniMAM 是以 Go backend 为主、frontend 独立部署的前后端分离项目。
 - 正式 frontend source code 统一放在 `frontend/` 目录。
 - OmniMAM 的定位是 AI capability hub、多模态 Asset 管理、Async Task 编排平台。
@@ -20,11 +19,7 @@
 - Provider 集成必须基于 capability/protocol，不允许业务层硬编码到单一 vendor。
 - Frontend 可见能力必须由 backend 返回的 permission 和 `FeatureFlag` 驱动，入口信息来自 `/api/v1/me`。
 - Frontend hiding 不是安全边界；backend permission check 和 feature gate 始终是权威判断。
-
-## 当前 Backend Contract
-
-- 核心 domain 包括 `Provider`、`ProviderModel`、`SystemLLMConfig`、`StorageBackend`、`Asset`、`AssetThumbnail`、`Tag`、`AssetGroup`、`AssetRelation`、`Task`、`FeatureFlag`、`Role`、`Permission`、`Canvas`。
-
+- 
 ## 工程工作流 Engineering Workflow
 - 修改后按用户要求提交 commit；如果用户没有要求提交，不要擅自提交。
 - Commit message 必须满足仓库 `commit-msg` hook，并遵循 Conventional Commit，例如 `feat(frontend): add web console`。
@@ -41,7 +36,6 @@
 - Library unit test 沿用当前项目 GoConvey 约定，使用 `github.com/smartystreets/goconvey/convey` 的 dot import
 
 ## 新增组件 Makefile 规则 Component Makefile Rules
-
 - 新增运行组件时，入口必须放在 `cmd/<component>/`；`make build` 默认从 `cmd/*` 推导 `BINS`。
 - 单独验证某个 binary 时，使用 `make build BINS="<component>"`。
 - 如果新组件需要通过 `make configs` 生成配置文件，必须更新 `scripts/make-rules/common.mk` 中的 `COMPONENTS`。
@@ -57,7 +51,6 @@
 - 准备提交包含 Go code 或 backend binary 的改动前，必须运行 `go test ./...` 或项目约定的最小相关测试。
 
 ## Frontend 目录规则 Frontend Layout
-
 - 正式 frontend source code 必须放在 `frontend/`。
 - `frontend/` 由 nginx 独立托管，API 通过 `/api/v1` 反向代理到 Go `API Server`。
 - Agent 不使用 `npm run build` 作为正式 frontend 验证命令。
@@ -67,7 +60,6 @@
 - 弹窗关闭必须由用户明确点击关闭按钮、`x` 号或取消按钮触发，禁止点击遮罩层、页面空白处或其他非弹窗区域直接关闭。
 
 ### Frontend 操作反馈建议 Feedback Guidance
-
 - 普通按钮或页面内轻量操作成功后，建议优先使用全局 toast 展示结果，例如保存成功、连接成功、同步完成、启用或禁用完成。
 - 普通按钮或页面内轻量操作失败后，建议优先使用全局 error toast 展示失败原因，避免在页面顶部插入临时错误块打断主布局扫描。
 - Toast 文案应面向用户表达动作结果，避免直接透出后端英文原文；技术细节、HTTP status、business code 等可作为辅助 detail，但不应成为主标题。
@@ -76,9 +68,9 @@
 - 弹窗中的表单提交、异步请求、校验或保存失败，错误信息必须保留在弹窗内；可以额外补充 error toast，但不能只依赖 toast。
 - 长耗时操作建议使用按钮 loading、进度条、任务状态或 async `Task` 入口反馈；toast 只用于开始、完成或失败的短提示。
 - 如果某个场景存在比 toast 更清晰、更可追踪或更符合业务语义的反馈方式，AI 应先说明推荐方案和 trade-off，并询问用户是否采用该方式。
+- 提供给用户的输入参数，必须包含必要的校验逻辑，避免用户输入无效数据导致系统异常。如字符长度、格式、范围，数字范围，资产存储容量等。尽可能使用公共函数实现校验逻辑，避免重复代码。除特殊情况外，也需要专门封装校验函数，以便通用化。
 
 ## Error Code 与 HTTP Status 规则
-
 - 对外接口调用失败时，必须返回正确的 business error code 和 HTTP status code。
 - 新增或调整错误码时，按 `internal/pkg/code/base.go` 的写法添加注释，至少包含：  - `@HTTP`：对应 HTTP status code。
   - `@CN`：中文错误说明。
@@ -103,6 +95,7 @@
 
 ## Backend apis包结构体字段规则
 - 如果入参结构体中的字段只支持特定的值，比如AuthType只支持"API_KEY"和"SecretKEY"两个值，则必须要字段的binding tag中指定校验规则，例如`"binding":"required,oneof=API_KEY SecretKEY"`。
+- 后端的入参需要检验字段合法性,通过bingding tag或者实现validate.Validate()来进行校验。避免过长字符串直接存储到数据库中
 - 所有存储数据库的元数据结构体，必须要实现`TableName`,`BeforeCreate`,`AfterCreate`,`BeforeUpdate`,`AfterUpdate方`法, 用于在创建和更新对象时执行自定义逻辑。如果没有需要修改的逻辑，可以实现为空函数预留。
 - 如果入参结构体字段需要处理当为零值时设置特定的值或者需要清理字符串等操作，则应实现`imachinery.DefaultSetter`,或者`imachinery.PostBinder`接口，尽可能在controller层调用core.DecodeParameter/core.Run处理完成，不要在service增加这些逻辑
 - 所有查询列表接口的都必须有入参，入参接口体必须嵌入imachinery.BasicQueryParam。并且在store层通过ToStore方法转换成Sql查询如
