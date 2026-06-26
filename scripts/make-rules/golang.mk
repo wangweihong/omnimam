@@ -28,7 +28,7 @@ endif
 
 GOPROXY := $(shell go env GOPROXY)
 
-COMMANDS ?= $(filter-out %.md, $(wildcard ${ROOT_DIR}/cmd/*))
+COMMANDS ?= $(filter-out %.md, $(wildcard ${ROOT_DIR}/backend/cmd/*))
 BINS ?= $(foreach cmd,${COMMANDS},$(notdir ${cmd}))
 
 ifeq (${COMMANDS},)
@@ -57,7 +57,7 @@ go.build.%:
 	$(eval ARCH := $(word 2,$(subst _, ,$(RULEPLATFORM))))
 	@echo "===========> Building binary $(COMMAND) $(VERSION) for $(OS)/$(ARCH),Output:$(OUTPUT_DIR)/platforms/$(OS)/$(ARCH)/$(COMMAND)"
 	@mkdir -p $(OUTPUT_DIR)/platforms/$(OS)/$(ARCH)
-	@CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) $(GO) build $(GO_BUILD_FLAGS) -o $(OUTPUT_DIR)/platforms/$(OS)/$(ARCH)/$(COMMAND) $(ROOT_PACKAGE)/cmd/$(COMMAND)
+	@CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) $(GO) build $(GO_BUILD_FLAGS) -o $(OUTPUT_DIR)/platforms/$(OS)/$(ARCH)/$(COMMAND) $(ROOT_PACKAGE)/backend/cmd/$(COMMAND)
 
 .PHONY: go.build
 go.build: go.build.verify $(addprefix go.build., $(addprefix $(subst /,_,$(PLATFORM))., $(BINS)))

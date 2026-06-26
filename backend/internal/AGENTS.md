@@ -1,0 +1,8 @@
+- 对外公共库放在 `/pkg`。
+- 项目内公共库放在 `/internal/pkg`。
+- Backend 代码新增 string、map、slice、set、convert 等通用 helper 或 function 前，必须优先检查仓库 `/pkg` 和 `github.com/wangweihong/gotoolbox` 是否已有公共函数。
+- 如果 `/pkg` 和 `github.com/wangweihong/gotoolbox` 没有合适公共函数，必须先判断该能力是否可以写成可复用的通用泛型函数，避免直接新增只能服务单个业务场景的局部 helper。
+- Backend 代码新增 HTTP client 请求、外部 API 调用封装、provider 或 gateway 调用时，必须优先使用 `github.com/wangweihong/gotoolbox` 的 `httpcli` 包。
+- 只有在 `httpcli` 不能满足明确需求时，才允许使用标准库或其他 HTTP client，并且实现前必须说明原因和 trade-off。
+- 新增 public 或 internal library code 时必须补单元测试。
+- Library unit test 沿用当前项目 GoConvey 约定，使用 `github.com/smartystreets/goconvey/convey` 的 dot impor

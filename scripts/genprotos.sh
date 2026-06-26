@@ -29,7 +29,7 @@ function generate_protos()
    #      如果pb文件为version,则输出路径为../apis/version.pb.go
    #      如果pb文件为version/version.pb,则输出路径为../apis/version/version.pb.go
    #      这种方式生成文件的路径不会被pb文件中的`option go_package`的影响。
-   # 方式二：  protoc --proto_path=. --go_out=./ --go_opt=module=github.com/wangweihong/omnimam/internal/pkg/grpcserver/apis  $pbfile
+   # 方式二：  protoc --proto_path=. --go_out=./ --go_opt=module=github.com/wangweihong/omnimam/backend/internal/pkg/grpcserver/apis  $pbfile
    #      module=$(Prefix), 其中${Prefix)为模块路径前缀。
    #      采用这种方式, 则要求proto文件中`option go_package`必须包含${Prefix}, 否则会报错。
    #      生成的pb文件路径为--go_out指定的路径/(`option go_package`指定的报名 - ${Prefix}
@@ -37,8 +37,8 @@ function generate_protos()
    #      则输出路径为./proto/version/*.pb.go.
    # 方式三：  protoc --proto_path=. --go_out=../ --go_opt=paths=import  $pbfile
    #      pb.go文件的输出路径为--go_out指定的路径加上proto文件中指定的option go_package路径的影响
-   #      如version.proto文件为option go_package = "github.com/wangweihong/omnimam/internal/pkg/grpcserver/apis/version";
-   #      则输出路径为../github.com/wangweihong/omnimam/internal/pkg/grpcserver/apis/version
+   #      如version.proto文件为option go_package = "github.com/wangweihong/omnimam/backend/internal/pkg/grpcserver/apis/version";
+   #      则输出路径为../github.com/wangweihong/omnimam/backend/internal/pkg/grpcserver/apis/version
    #      *注意*: 虽然也可以设置`option go_package="apis/version", 但如果protos之间存在import,生成的pb.go文件中import (apis/version)
    #             导致go编译因为找不到apis/version而出错。
 
