@@ -1,0 +1,344 @@
+version: 1
+generated_at: "2026-06-26"
+status_values:
+  - 可用
+  - 部分可用
+  - 开发中
+  - 待开发
+  - 废弃
+  - 未知
+modules:
+  - id: web-shell
+    name: Web 应用壳
+    status: 可用
+    summary: Web 前端提供应用入口、导航、权限过滤和当前用户能力加载。
+    frontend_routes:
+      - /dashboard
+      - /assets
+      - /tasks
+      - /canvases
+      - /canvases/:canvasId
+      - /settings
+      - /providers
+    backend_apis:
+      - GET /api/v1/me
+    tables: []
+    evidence:
+      - apps/web/src/App.tsx: 定义导航、React Router 路由和 getMe 初始化。
+      - apps/web/src/shared/auth/features.ts: 定义 hasPermission 权限过滤。
+      - apps/web/src/shared/api/platform.ts: getMe 调用 /me。
+    doc: docs/modules/web-shell.md
+    pending_confirmations:
+      - 运行时登录态、鉴权中间件策略需结合部署环境确认。
+
+  - id: provider-management
+    name: 模型提供商管理
+    status: 可用
+    summary: 管理模型提供商、预设、模型列表、模型同步、连通性测试和系统默认模型配置。
+    frontend_routes:
+      - /settings
+      - /providers
+    backend_apis:
+      - GET /api/v1/provider-presets
+      - POST /api/v1/provider-presets/:preset_key/install
+      - GET /api/v1/providers
+      - POST /api/v1/providers
+      - PATCH /api/v1/providers/:provider_id
+      - DELETE /api/v1/providers/:provider_id
+      - POST /api/v1/providers/:provider_id/test
+      - GET /api/v1/providers/:provider_id/models
+      - POST /api/v1/providers/:provider_id/models
+      - POST /api/v1/providers/:provider_id/models/sync
+      - PATCH /api/v1/providers/:provider_id/models/:model_id
+      - DELETE /api/v1/providers/:provider_id/models/:model_id
+      - GET /api/v1/system-llm-config
+      - PUT /api/v1/system-llm-config
+    tables:
+      - providers
+      - provider_models
+      - provider_capabilities
+      - system_llm_configs
+    evidence:
+      - backend/internal/apiserver/route.go: 注册 provider-presets、providers、system-llm-config 路由。
+      - backend/internal/apiserver/controller/v1/platform/platform.go: PlatformController 实现 provider 相关 Handler。
+      - backend/internal/apiserver/service/v1/platform/service.go: platform service 处理 provider 业务逻辑。
+      - backend/apis/iapiserver/meta_platform.go: 定义 Provider、ProviderModel、SystemLLMConfig 表模型。
+      - apps/web/src/pages/Providers.tsx: Web 提供商管理页面。
+    doc: docs/modules/provider-management.md
+    pending_confirmations:
+      - Provider credential 的加密、外部密钥管理策略待确认。
+
+  - id: platform-assets
+    name: 平台资产管理
+    status: 可用
+    summary: 提供资产上传、分片上传、列表筛选、自然语言检索解析、预览、重命名和删除。
+    frontend_routes:
+      - /assets
+    backend_apis:
+      - GET /api/v1/assets
+      - POST /api/v1/assets/upload
+      - POST /api/v1/assets/uploads/chunks/init
+      - PUT /api/v1/assets/uploads/chunks/:checksum/:index
+      - POST /api/v1/assets/uploads/chunks/:checksum/complete
+      - DELETE /api/v1/assets/uploads/chunks/:checksum
+      - POST /api/v1/assets/search
+      - POST /api/v1/assets/search/parse
+      - GET /api/v1/assets/:asset_id
+      - PATCH /api/v1/assets/:asset_id
+      - DELETE /api/v1/assets/:asset_id
+      - GET /api/v1/assets/:asset_id/content
+      - GET /api/v1/assets/:asset_id/thumbnail
+      - POST /api/v1/asset-groups
+      - POST /api/v1/canvas-assets/download
+      - POST /api/v1/canvas-assets/check
+      - POST /api/v1/canvas-assets/register-output
+    tables:
+      - assets
+      - asset_thumbnails
+      - tags
+      - asset_tags
+      - asset_groups
+      - asset_group_members
+      - asset_relations
+      - storage_backends
+    evidence:
+      - backend/internal/apiserver/route.go: 注册 /assets、/asset-groups、/canvas-assets 路由。
+      - backend/internal/apiserver/controller/v1/platform/platform.go: 实现资产上传、搜索、下载、缩略图 Handler。
+      - backend/apis/iapiserver/meta_platform.go: 定义 Asset、AssetThumbnail、Tag 等表模型。
+      - apps/web/src/pages/Assets.tsx: Web 资产管理页面。
+      - apps/web/src/shared/api/platform.ts: 定义资产 API 调用。
+    doc: docs/modules/platform-assets.md
+    pending_confirmations:
+      - 对象存储后端的生产路径、容量和清理策略待确认。
+
+  - id: task-management
+    name: 异步任务管理
+    status: 可用
+    summary: 提供任务创建、查询、取消、事件接口和 worker 处理器。
+    frontend_routes:
+      - /tasks
+    backend_apis:
+      - GET /api/v1/tasks
+      - POST /api/v1/tasks
+      - GET /api/v1/tasks/:task_id
+      - POST /api/v1/tasks/:task_id/cancel
+      - GET /api/v1/tasks/:task_id/events
+    tables:
+      - tasks
+    evidence:
+      - backend/internal/apiserver/route.go: 注册 /tasks 路由。
+      - backend/internal/apiserver/controller/v1/platform/platform.go: 实现任务 Handler。
+      - backend/internal/apiserver/worker/processor.go: 定义任务处理器。
+      - backend/apis/iapiserver/meta_platform.go: 定义 Task 表模型。
+      - apps/web/src/pages/Tasks.tsx: Web 任务列表和取消操作。
+    doc: docs/modules/task-management.md
+    pending_confirmations:
+      - 生产环境队列数量、worker 数和重试策略待确认。
+
+  - id: canvas-workflow
+    name: 画布工作流
+    status: 可用
+    summary: 提供画布创建、编辑保存、删除恢复、导入导出、工作流包和节点/画布运行能力。
+    frontend_routes:
+      - /canvases
+      - /canvases/:canvasId
+    backend_apis:
+      - GET /api/v1/canvases
+      - GET /api/v1/canvases/trash
+      - POST /api/v1/canvases
+      - POST /api/v1/canvases/import
+      - GET /api/v1/canvases/:canvas_id
+      - GET /api/v1/canvases/:canvas_id/export
+      - PATCH /api/v1/canvases/:canvas_id
+      - GET /api/v1/canvases/:canvas_id/meta
+      - POST /api/v1/canvases/:canvas_id/meta
+      - PUT /api/v1/canvases/:canvas_id
+      - POST /api/v1/canvases/:canvas_id/workflows/export
+      - POST /api/v1/canvases/:canvas_id/workflows/import
+      - POST /api/v1/canvases/:canvas_id/workflows/export-package
+      - POST /api/v1/canvases/:canvas_id/workflows/import-package
+      - POST /api/v1/canvases/:canvas_id/touch
+      - DELETE /api/v1/canvases/:canvas_id
+      - POST /api/v1/canvases/:canvas_id/restore
+      - DELETE /api/v1/canvases/:canvas_id/purge
+      - POST /api/v1/canvases/:canvas_id/run
+      - POST /api/v1/canvases/:canvas_id/nodes/:node_id/run
+      - GET /api/v1/canvases/:canvas_id/runs/:task_id
+      - POST /api/v1/canvases/:canvas_id/runs/:task_id/cancel
+      - GET /api/v1/projects
+      - POST /api/v1/projects
+      - POST /api/v1/projects/:project_id
+      - DELETE /api/v1/projects/:project_id
+    tables:
+      - canvases
+      - projects
+      - tasks
+      - assets
+      - asset_relations
+    evidence:
+      - backend/internal/apiserver/route.go: 注册 /canvases、/projects 和运行相关路由。
+      - backend/internal/apiserver/controller/v1/canvas/canvas.go: 实现画布 CRUD 和导入导出 Handler。
+      - backend/internal/apiserver/controller/v1/platform/platform.go: 实现画布运行和资产注册 Handler。
+      - backend/internal/apiserver/service/v1/canvas/project.go: 实现画布服务逻辑。
+      - apps/web/src/pages/Canvases.tsx: Web 画布列表页。
+      - apps/web/src/pages/CanvasEditor.tsx: Web 画布编辑器。
+    doc: docs/modules/canvas-workflow.md
+    pending_confirmations:
+      - 节点类型运行语义、调度 SLA 和工作流包兼容策略待确认。
+
+  - id: asset-library
+    name: 素材库
+    status: 部分可用
+    summary: 后端提供素材库、分类、条目接口，当前 Web 没有独立页面入口。
+    frontend_routes: []
+    backend_apis:
+      - GET /api/v1/asset-library/libraries
+      - POST /api/v1/asset-library/libraries
+      - PATCH /api/v1/asset-library/libraries/:library_id
+      - DELETE /api/v1/asset-library/libraries/:library_id
+      - GET /api/v1/asset-library/categories
+      - POST /api/v1/asset-library/categories
+      - PATCH /api/v1/asset-library/categories/:category_id
+      - DELETE /api/v1/asset-library/categories/:category_id
+      - GET /api/v1/asset-library/items
+      - POST /api/v1/asset-library/items
+      - POST /api/v1/asset-library/items/batch
+      - PATCH /api/v1/asset-library/items/:item_id
+      - DELETE /api/v1/asset-library/items/:item_id
+      - POST /api/v1/asset-library/items/delete
+      - POST /api/v1/asset-library/items/move
+      - POST /api/v1/asset-library/items/classify
+    tables:
+      - asset_libraries
+      - asset_categories
+      - asset_items
+    evidence:
+      - backend/internal/apiserver/route.go: 注册 /asset-library 路由。
+      - backend/internal/apiserver/controller/v1/asset/asset.go: 实现素材库 Handler。
+      - backend/internal/apiserver/service/v1/asset/0_service.go: 实现素材库服务逻辑。
+      - backend/apis/iapiserver/meta_asset.go: 定义 AssetLibrary、AssetCategory、AssetItem 表模型。
+      - apps/web/src/App.tsx: 未发现 /asset-library 页面路由。
+    doc: docs/modules/asset-library.md
+    pending_confirmations:
+      - 是否需要前端管理页面和与平台资产模块的边界待确认。
+
+  - id: prompt-library
+    name: 提示词库
+    status: 部分可用
+    summary: 后端提供提示词库、分类、条目接口，当前 Web 没有独立页面入口。
+    frontend_routes: []
+    backend_apis:
+      - GET /api/v1/prompt-libraries
+      - POST /api/v1/prompt-libraries
+      - PATCH /api/v1/prompt-libraries/:library_id
+      - DELETE /api/v1/prompt-libraries/:library_id
+      - POST /api/v1/prompt-libraries/items
+      - PATCH /api/v1/prompt-libraries/items/:item_id
+      - DELETE /api/v1/prompt-libraries/items/:item_id
+      - POST /api/v1/prompt-libraries/items/delete
+      - POST /api/v1/prompt-libraries/categories
+      - PATCH /api/v1/prompt-libraries/categories/:category_id
+      - DELETE /api/v1/prompt-libraries/categories/:category_id
+    tables:
+      - prompt_libraries
+      - prompt_categories
+      - prompt_items
+    evidence:
+      - backend/internal/apiserver/route.go: 注册 /prompt-libraries 路由。
+      - backend/internal/apiserver/controller/v1/prompt/prompt.go: 实现提示词库 Handler。
+      - backend/internal/apiserver/service/v1/prompt/prompt.go: 实现提示词库服务逻辑。
+      - backend/apis/iapiserver/meta_asset.go: 定义 PromptLibrary、PromptCategory、PromptItem 表模型。
+      - apps/web/src/App.tsx: 未发现 /prompt-libraries 页面路由。
+    doc: docs/modules/prompt-library.md
+    pending_confirmations:
+      - 是否需要前端提示词库页面、导入导出能力和权限粒度待确认。
+
+  - id: auth-sso-settings
+    name: 认证与 SSO 设置
+    status: 部分可用
+    summary: 后端提供 OTP、SAML SSO、IdP/SP 元数据和应用配置接口，当前 Web 无独立配置页面。
+    frontend_routes: []
+    backend_apis:
+      - GET /api/v1/auth/otp/qrcode
+      - POST /api/v1/auth/otp/validate
+      - GET /api/v1/auth/sso/sp/saml/metadata
+      - POST /api/v1/auth/sso/sp/saml/initiator
+      - POST /api/v1/auth/sso/sp/saml/acs
+      - POST /api/v1/auth/sso/sp/saml/slo
+      - POST /api/v1/auth/sso/idp/saml/answer
+      - POST /api/v1/setting/sso/saml/idp/metadata/upsert
+      - GET /api/v1/setting/sso/saml/idp/metadata/get
+      - GET /api/v1/setting/sso/saml/idp/metadata/download
+      - POST /api/v1/setting/sso/saml/sp/metadata/upsert
+      - GET /api/v1/setting/sso/saml/sp/metadata/get
+      - GET /api/v1/setting/sso/saml/sp/metadata/download
+      - POST /api/v1/setting/sso/app/idp/add
+      - POST /api/v1/setting/sso/app/idp/delete
+      - POST /api/v1/setting/sso/app/idp/update
+      - GET /api/v1/setting/sso/app/idp/get
+      - GET /api/v1/setting/sso/app/idp/list
+      - POST /api/v1/setting/sso/app/sp/add
+      - POST /api/v1/setting/sso/app/sp/delete
+      - POST /api/v1/setting/sso/app/sp/update
+      - GET /api/v1/setting/sso/app/sp/get
+      - GET /api/v1/setting/sso/app/sp/redirect_url
+      - GET /api/v1/setting/sso/app/sp/list
+    tables:
+      - identity_providers
+      - service_providers
+      - settings
+      - user_otps
+      - one_time_tokens
+    evidence:
+      - backend/internal/apiserver/route.go: 注册 /auth/otp、/auth/sso 和 /setting/sso 路由。
+      - backend/internal/apiserver/controller/v1/authentication/*.go: 实现认证和 SSO Handler。
+      - backend/internal/apiserver/controller/v1/setting/*.go: 实现 SSO 设置 Handler。
+      - backend/internal/apiserver/service/v1/setting/*.go: 实现 SSO 设置服务逻辑。
+      - backend/apis/iapiserver/meta_sso.go: 定义 IdentityProvider 和 ServiceProvider 表模型。
+      - backend/apis/iapiserver/meta_token.go: 定义 OneTimeToken 表模型。
+    doc: docs/modules/auth-sso-settings.md
+    pending_confirmations:
+      - SSO 安全配置、证书轮换和前端登录流程待确认。
+
+  - id: identity-permission
+    name: 身份与权限
+    status: 开发中
+    summary: 数据模型和当前用户能力接口存在，但未发现完整用户、角色、权限管理页面和 CRUD 路由。
+    frontend_routes: []
+    backend_apis:
+      - GET /api/v1/me
+    tables:
+      - users
+      - roles
+      - permissions
+      - user_roles
+      - feature_flags
+    evidence:
+      - backend/internal/apiserver/route.go: 注册 GET /me。
+      - backend/apis/iapiserver/meta_identity.go: 定义 User 表模型。
+      - backend/apis/iapiserver/meta_platform.go: 定义 FeatureFlag、Role、Permission、UserRole 表模型。
+      - apps/web/src/App.tsx: 基于 me.permissions 过滤导航。
+      - apps/web/src/shared/auth/features.ts: 定义 hasPermission 和 featureEnabled。
+    doc: docs/modules/identity-permission.md
+    pending_confirmations:
+      - 用户、角色、权限 CRUD 的产品范围和接口设计待确认。
+
+  - id: storage-backend
+    name: 存储后端
+    status: 部分可用
+    summary: 后端提供存储后端列表、创建、更新接口和表模型，当前 Web 无独立管理页面。
+    frontend_routes: []
+    backend_apis:
+      - GET /api/v1/storage-backends
+      - POST /api/v1/storage-backends
+      - PATCH /api/v1/storage-backends/:backend_id
+    tables:
+      - storage_backends
+    evidence:
+      - backend/internal/apiserver/route.go: 注册 /storage-backends 路由。
+      - backend/internal/apiserver/controller/v1/platform/platform.go: 实现 StorageBackend Handler。
+      - backend/apis/iapiserver/meta_platform.go: 定义 StorageBackend 表模型。
+      - apps/web/src/App.tsx: 未发现 /storage-backends 页面路由。
+    doc: docs/modules/storage-backend.md
+    pending_confirmations:
+      - 多后端类型、配额、只读策略和前端管理入口待确认。

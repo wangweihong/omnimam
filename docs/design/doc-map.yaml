@@ -1,0 +1,55 @@
+rules:
+  - change: backend_api
+    match:
+      paths:
+        - "backend/router/**"
+        - "backend/api/**"
+        - "backend/controller/**"
+        - "backend/handler/**"
+        - "backend/service/**"
+    update_docs:
+      - "docs/generated/api-inventory.md"
+      - "docs/architecture/backend-design.md"
+      - "docs/architecture/module-index.md"
+      - "docs/modules/{module-id}.md"
+
+  - change: frontend_page
+    match:
+      paths:
+        - "apps/web/src/pages/**"
+        - "apps/web/src/routes/**"
+        - "apps/web/src/components/**"
+        - "web/src/pages/**"
+        - "web/src/router/**"
+    update_docs:
+      - "docs/generated/frontend-inventory.md"
+      - "docs/architecture/frontend-design.md"
+      - "docs/architecture/module-index.md"
+      - "docs/modules/{module-id}.md"
+
+  - change: database_schema
+    match:
+      paths:
+        - "backend/model/**"
+        - "backend/models/**"
+        - "backend/migration/**"
+        - "backend/migrations/**"
+        - "schema.sql"
+        - "migrations/**"
+    update_docs:
+      - "docs/generated/db-inventory.md"
+      - "docs/architecture/database-design.md"
+      - "docs/modules/{module-id}.md"
+
+  - change: new_module
+    match:
+      paths:
+        - "backend/**"
+        - "apps/web/**"
+        - "web/**"
+    update_docs:
+      - "docs/module-manifest.yaml"
+      - "docs/architecture/module-index.md"
+      - "docs/architecture/system-overview.md"
+      - "docs/modules/{module-id}.md"
+      - "docs/architecture/roadmap.md"

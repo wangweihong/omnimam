@@ -1,0 +1,22 @@
+modules:
+  - id: provider-management
+    name: Provider 管理
+    status: 部分可用
+    description: 管理模型服务提供商，包括基础配置、模型列表、认证配置、日志设置。
+    frontend:
+      routes:
+        - /providers
+    backend:
+      apis:
+        - GET /api/providers
+        - POST /api/providers
+    database:
+      tables:
+        - providers
+    submodules:
+      - id: provider-crud
+        name: Provider 基础管理
+        status: available
+      - id: provider-log-settings
+        name: Provider 日志设置
+        status: planned

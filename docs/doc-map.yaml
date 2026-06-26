@@ -1,0 +1,83 @@
+# 告诉 Codex 某类代码变更应该同步更新哪些文档。
+rules:
+  - change: backend_api
+    match:
+      paths:
+        - "backend/internal/apiserver/route.go"
+        - "backend/internal/apiserver/controller/**"
+        - "backend/internal/apiserver/service/**"
+        - "backend/apis/**"
+    update_docs:
+      - "docs/generated/api-inventory.md"
+      - "docs/architecture/backend-design.md"
+      - "docs/architecture/module-index.md"
+      - "docs/module-manifest.yaml"
+      - "docs/modules/{module-id}.md"
+
+  - change: frontend_page
+    match:
+      paths:
+        - "apps/web/src/App.tsx"
+        - "apps/web/src/pages/**"
+        - "apps/web/src/components/**"
+        - "apps/web/src/shared/api/**"
+        - "apps/web/src/shared/auth/**"
+    update_docs:
+      - "docs/generated/frontend-inventory.md"
+      - "docs/architecture/frontend-design.md"
+      - "docs/architecture/module-index.md"
+      - "docs/module-manifest.yaml"
+      - "docs/modules/{module-id}.md"
+
+  - change: database_schema
+    match:
+      paths:
+        - "backend/apis/iapiserver/meta_*.go"
+        - "backend/internal/apiserver/server.go"
+        - "backend/internal/apiserver/store/**"
+    update_docs:
+      - "docs/generated/db-inventory.md"
+      - "docs/architecture/database-design.md"
+      - "docs/module-manifest.yaml"
+      - "docs/modules/{module-id}.md"
+
+  - change: config_or_permission
+    match:
+      paths:
+        - "configs/**"
+        - "backend/internal/apiserver/options/**"
+        - "backend/internal/apiserver/middleware/**"
+        - "backend/internal/pkg/codec/**"
+        - "scripts/install/**"
+    update_docs:
+      - "docs/generated/code-inventory.md"
+      - "docs/architecture/system-overview.md"
+      - "docs/architecture/backend-design.md"
+      - "docs/module-manifest.yaml"
+      - "docs/modules/{module-id}.md"
+
+  - change: build_or_deploy
+    match:
+      paths:
+        - "Makefile"
+        - "scripts/make-rules/**"
+        - "build/docker/**"
+        - "deployments/**"
+    update_docs:
+      - "docs/generated/code-inventory.md"
+      - "docs/architecture/system-overview.md"
+      - "docs/architecture/roadmap.md"
+
+  - change: new_module
+    match:
+      paths:
+        - "backend/internal/apiserver/**"
+        - "backend/apis/**"
+        - "apps/web/src/**"
+    update_docs:
+      - "docs/module-manifest.yaml"
+      - "docs/architecture/system-overview.md"
+      - "docs/architecture/module-index.md"
+      - "docs/architecture/roadmap.md"
+      - "docs/modules/{module-id}.md"
+      - "docs/architecture/change-log.md"
